@@ -1,0 +1,15 @@
+SET
+INSERT 0 10
+INSERT 0 10
+INSERT 0 12
+INSERT 0 10
+INSERT 0 15
+ table_name | count 
+------------+-------
+ department |    10
+ professor  |    10
+ student    |    12
+ course     |    10
+ enroll     |    15
+(5 rows)
+

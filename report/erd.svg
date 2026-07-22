@@ -1,0 +1,184 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1060 900" font-family="'Apple SD Gothic Neo','Malgun Gothic',sans-serif">
+  <style>
+    .ent-title { fill:#ffffff; font-size:15px; font-weight:700; }
+    .attr { font-size:12px; fill:#1f2937; font-family:'SF Mono',Menlo,monospace; }
+    .badge { font-size:10px; font-weight:700; }
+    .rel { stroke:#475569; stroke-width:1.6; fill:none; }
+    .lbl { font-size:12px; fill:#334155; }
+    .card { font-size:12px; font-weight:700; fill:#0f766e; }
+    .leg { font-size:12px; fill:#1f2937; }
+  </style>
+
+  <rect x="0" y="0" width="1060" height="900" fill="#ffffff"/>
+  <text x="530" y="42" text-anchor="middle" font-size="22" font-weight="800" fill="#111827">학사관리시스템 ERD</text>
+  <text x="530" y="64" text-anchor="middle" font-size="12" fill="#6b7280">PostgreSQL 17 · DB: skala_edu · Schema: academy · 까마귀발(Crow's Foot) 표기</text>
+
+  <!-- ═══════════ 범례 (Legend) ═══════════ -->
+  <g>
+    <rect x="40" y="90" width="250" height="268" rx="8" fill="#f8fafc" stroke="#94a3b8" stroke-width="1.2"/>
+    <rect x="40" y="90" width="250" height="30" rx="8" fill="#334155"/>
+    <rect x="40" y="106" width="250" height="14" fill="#334155"/>
+    <text x="165" y="110" text-anchor="middle" class="ent-title">범례 (Legend)</text>
+
+    <rect x="54" y="132" width="26" height="14" fill="#2563eb" rx="2"/>
+    <text x="88" y="143" class="leg">엔터티(테이블) — 파란 제목줄</text>
+
+    <text x="54" y="165" class="badge" fill="#b45309">PK</text>
+    <text x="88" y="165" class="leg">기본키 (Primary Key)</text>
+    <text x="54" y="184" class="badge" fill="#2563eb">FK</text>
+    <text x="88" y="184" class="leg">외래키 (Foreign Key)</text>
+    <text x="54" y="203" class="badge" fill="#7c3aed">UK</text>
+    <text x="88" y="203" class="leg">고유키 (UNIQUE)</text>
+
+    <line x1="54" y1="222" x2="80" y2="222" class="rel"/>
+    <line x1="60" y1="216" x2="60" y2="228" class="rel"/>
+    <text x="88" y="226" class="leg">1 쪽 (한 건) — 수직 짧은 선</text>
+
+    <g class="rel">
+      <line x1="54" y1="244" x2="80" y2="244"/>
+      <line x1="64" y1="244" x2="80" y2="237"/>
+      <line x1="64" y1="244" x2="80" y2="251"/>
+    </g>
+    <text x="88" y="248" class="leg">N 쪽 (여러 건) — 까마귀발</text>
+
+    <text x="54" y="274" class="leg" font-weight="700">관계 설명문</text>
+    <text x="54" y="292" class="leg">· 학과 1 : N 교수·학생·과목</text>
+    <text x="54" y="310" class="leg">· 교수 1 : N 과목(담당)</text>
+    <text x="54" y="328" class="leg">· 학생 : 과목 = N : M 관계는</text>
+    <text x="64" y="346" class="leg">enroll 교차 테이블로 분해</text>
+  </g>
+
+  <!-- ═══════════ department ═══════════ -->
+  <g>
+    <rect x="40" y="400" width="250" height="118" rx="6" fill="#ffffff" stroke="#2563eb" stroke-width="1.5"/>
+    <path d="M40 406 a6 6 0 0 1 6 -6 h238 a6 6 0 0 1 6 6 v24 h-250 z" fill="#2563eb"/>
+    <text x="165" y="418" text-anchor="middle" class="ent-title">department (학과)</text>
+    <text x="52" y="448" class="attr"><tspan class="badge" fill="#b45309">PK </tspan>dept_id : SERIAL</text>
+    <text x="52" y="470" class="attr"><tspan class="badge" fill="#7c3aed">UK </tspan>dept_name : VARCHAR(50)</text>
+    <text x="52" y="492" class="attr">office : VARCHAR(50)</text>
+    <text x="52" y="514" class="attr">established_date : DATE</text>
+  </g>
+
+  <!-- ═══════════ professor ═══════════ -->
+  <g>
+    <rect x="390" y="100" width="270" height="162" rx="6" fill="#ffffff" stroke="#2563eb" stroke-width="1.5"/>
+    <path d="M390 106 a6 6 0 0 1 6 -6 h258 a6 6 0 0 1 6 6 v24 h-270 z" fill="#2563eb"/>
+    <text x="525" y="118" text-anchor="middle" class="ent-title">professor (교수)</text>
+    <text x="402" y="148" class="attr"><tspan class="badge" fill="#b45309">PK </tspan>prof_id : SERIAL</text>
+    <text x="402" y="170" class="attr">prof_name : VARCHAR(30)</text>
+    <text x="402" y="192" class="attr"><tspan class="badge" fill="#2563eb">FK </tspan>dept_id → department</text>
+    <text x="402" y="214" class="attr">position : CHECK(교수/부/조교수)</text>
+    <text x="402" y="236" class="attr"><tspan class="badge" fill="#7c3aed">UK </tspan>email : VARCHAR(100)</text>
+    <text x="402" y="258" class="attr">hire_date : DATE</text>
+  </g>
+
+  <!-- ═══════════ course ═══════════ -->
+  <g>
+    <rect x="390" y="360" width="270" height="184" rx="6" fill="#ffffff" stroke="#2563eb" stroke-width="1.5"/>
+    <path d="M390 366 a6 6 0 0 1 6 -6 h258 a6 6 0 0 1 6 6 v24 h-270 z" fill="#2563eb"/>
+    <text x="525" y="378" text-anchor="middle" class="ent-title">course (과목)</text>
+    <text x="402" y="408" class="attr"><tspan class="badge" fill="#b45309">PK </tspan>course_id : SERIAL</text>
+    <text x="402" y="430" class="attr">course_name : VARCHAR(60)</text>
+    <text x="402" y="452" class="attr"><tspan class="badge" fill="#2563eb">FK </tspan>dept_id → department</text>
+    <text x="402" y="474" class="attr"><tspan class="badge" fill="#2563eb">FK </tspan>prof_id → professor</text>
+    <text x="402" y="496" class="attr">credits : CHECK(1~3)</text>
+    <text x="402" y="518" class="attr">semester : VARCHAR(10)</text>
+    <text x="402" y="540" class="attr">capacity : DEFAULT 30, &gt;0</text>
+  </g>
+
+  <!-- ═══════════ student ═══════════ -->
+  <g>
+    <rect x="390" y="620" width="270" height="228" rx="6" fill="#ffffff" stroke="#2563eb" stroke-width="1.5"/>
+    <path d="M390 626 a6 6 0 0 1 6 -6 h258 a6 6 0 0 1 6 6 v24 h-270 z" fill="#2563eb"/>
+    <text x="525" y="638" text-anchor="middle" class="ent-title">student (학생)</text>
+    <text x="402" y="668" class="attr"><tspan class="badge" fill="#b45309">PK </tspan>student_id : SERIAL</text>
+    <text x="402" y="690" class="attr">student_name : VARCHAR(30)</text>
+    <text x="402" y="712" class="attr"><tspan class="badge" fill="#2563eb">FK </tspan>dept_id → department</text>
+    <text x="402" y="734" class="attr">grade : CHECK(1~4)</text>
+    <text x="402" y="756" class="attr"><tspan class="badge" fill="#7c3aed">UK </tspan>email : VARCHAR(100)</text>
+    <text x="402" y="778" class="attr">phone : NULL 허용</text>
+    <text x="402" y="800" class="attr">birth_date / admission_date</text>
+    <text x="402" y="822" class="attr">status : CHECK(재학/휴학/졸업)</text>
+    <text x="402" y="842" class="attr" font-size="11" fill="#6b7280">DEFAULT '재학'</text>
+  </g>
+
+  <!-- ═══════════ enroll ═══════════ -->
+  <g>
+    <rect x="770" y="500" width="260" height="162" rx="6" fill="#fffbeb" stroke="#d97706" stroke-width="1.5"/>
+    <path d="M770 506 a6 6 0 0 1 6 -6 h248 a6 6 0 0 1 6 6 v24 h-260 z" fill="#d97706"/>
+    <text x="900" y="518" text-anchor="middle" class="ent-title">enroll (수강신청 · 교차)</text>
+    <text x="782" y="548" class="attr"><tspan class="badge" fill="#b45309">PK </tspan>enroll_id : SERIAL</text>
+    <text x="782" y="570" class="attr"><tspan class="badge" fill="#2563eb">FK </tspan>student_id (CASCADE)</text>
+    <text x="782" y="592" class="attr"><tspan class="badge" fill="#2563eb">FK </tspan>course_id → course</text>
+    <text x="782" y="614" class="attr">enroll_date : DEFAULT 오늘</text>
+    <text x="782" y="636" class="attr">score : NULL=미평가, 0~100</text>
+    <text x="782" y="656" class="attr"><tspan class="badge" fill="#7c3aed">UK </tspan>(student_id, course_id)</text>
+  </g>
+
+  <!-- ═══════════ 관계선 (선 겹침 없음) ═══════════ -->
+  <!-- department 1 : N professor -->
+  <g class="rel">
+    <path d="M290 430 H340 V181 H390"/>
+    <line x1="300" y1="424" x2="300" y2="436"/>
+    <line x1="374" y1="181" x2="390" y2="173"/>
+    <line x1="374" y1="181" x2="390" y2="189"/>
+  </g>
+  <text x="304" y="425" class="card">1</text>
+  <text x="360" y="172" class="card">N</text>
+  <text x="346" y="290" class="lbl">소속</text>
+
+  <!-- department 1 : N course -->
+  <g class="rel">
+    <path d="M290 460 H390"/>
+    <line x1="300" y1="454" x2="300" y2="466"/>
+    <line x1="374" y1="460" x2="390" y2="452"/>
+    <line x1="374" y1="460" x2="390" y2="468"/>
+  </g>
+  <text x="304" y="455" class="card">1</text>
+  <text x="358" y="451" class="card">N</text>
+  <text x="318" y="452" class="lbl">개설</text>
+
+  <!-- department 1 : N student -->
+  <g class="rel">
+    <path d="M290 490 H340 V734 H390"/>
+    <line x1="300" y1="484" x2="300" y2="496"/>
+    <line x1="374" y1="734" x2="390" y2="726"/>
+    <line x1="374" y1="734" x2="390" y2="742"/>
+  </g>
+  <text x="304" y="485" class="card">1</text>
+  <text x="358" y="726" class="card">N</text>
+  <text x="346" y="640" class="lbl">소속</text>
+
+  <!-- professor 1 : N course -->
+  <g class="rel">
+    <path d="M520 262 V360"/>
+    <line x1="514" y1="274" x2="526" y2="274"/>
+    <line x1="520" y1="344" x2="512" y2="360"/>
+    <line x1="520" y1="344" x2="528" y2="360"/>
+  </g>
+  <text x="530" y="280" class="card">1</text>
+  <text x="530" y="350" class="card">N</text>
+  <text x="532" y="316" class="lbl">담당</text>
+
+  <!-- course 1 : N enroll -->
+  <g class="rel">
+    <path d="M660 460 H715 V530 H770"/>
+    <line x1="672" y1="454" x2="672" y2="466"/>
+    <line x1="754" y1="530" x2="770" y2="522"/>
+    <line x1="754" y1="530" x2="770" y2="538"/>
+  </g>
+  <text x="676" y="455" class="card">1</text>
+  <text x="738" y="522" class="card">N</text>
+  <text x="700" y="447" class="lbl">수강 대상</text>
+
+  <!-- student 1 : N enroll -->
+  <g class="rel">
+    <path d="M660 710 H715 V632 H770"/>
+    <line x1="672" y1="704" x2="672" y2="716"/>
+    <line x1="754" y1="632" x2="770" y2="624"/>
+    <line x1="754" y1="632" x2="770" y2="640"/>
+  </g>
+  <text x="676" y="705" class="card">1</text>
+  <text x="738" y="626" class="card">N</text>
+  <text x="700" y="727" class="lbl">수강 신청</text>
+</svg>

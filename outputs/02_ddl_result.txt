@@ -1,0 +1,32 @@
+CREATE SCHEMA
+SET
+psql:sql/02_ddl_tables.sql:13: NOTICE:  table "enroll" does not exist, skipping
+DROP TABLE
+psql:sql/02_ddl_tables.sql:14: NOTICE:  table "course" does not exist, skipping
+DROP TABLE
+psql:sql/02_ddl_tables.sql:15: NOTICE:  table "student" does not exist, skipping
+DROP TABLE
+psql:sql/02_ddl_tables.sql:16: NOTICE:  table "professor" does not exist, skipping
+DROP TABLE
+psql:sql/02_ddl_tables.sql:17: NOTICE:  table "department" does not exist, skipping
+DROP TABLE
+CREATE TABLE
+COMMENT
+CREATE TABLE
+COMMENT
+CREATE TABLE
+COMMENT
+CREATE TABLE
+COMMENT
+CREATE TABLE
+COMMENT
+              List of relations
+ Schema  |    Name    | Type  |    Owner     
+---------+------------+-------+--------------
+ academy | course     | table | parkyoungseo
+ academy | department | table | parkyoungseo
+ academy | enroll     | table | parkyoungseo
+ academy | professor  | table | parkyoungseo
+ academy | student    | table | parkyoungseo
+(5 rows)
+
