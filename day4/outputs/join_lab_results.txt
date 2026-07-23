@@ -1,0 +1,536 @@
+════════════════════════════════════════════
+  Q01  (q01.sql)
+════════════════════════════════════════════
+ student_id |   name    |  course  | grade 
+------------+-----------+----------+-------
+          1 | Student_1 | Course_3 | C
+          1 | Student_1 | Course_4 | D
+          1 | Student_1 | Course_5 | A
+          2 | Student_2 | Course_4 | D
+          2 | Student_2 | Course_5 | A
+(5 rows)
+
+
+════════════════════════════════════════════
+  Q02  (q02.sql)
+════════════════════════════════════════════
+ student_id |   name    |  course  
+------------+-----------+----------
+          1 | Student_1 | Course_3
+          1 | Student_1 | Course_4
+          1 | Student_1 | Course_5
+          2 | Student_2 | Course_4
+          2 | Student_2 | Course_5
+(5 rows)
+
+
+════════════════════════════════════════════
+  Q03  (q03.sql)
+════════════════════════════════════════════
+ student_id |  course  | grade |   name    
+------------+----------+-------+-----------
+       1001 | AI       | A     | 
+       1010 | ML       | B     | 
+          1 | Course_3 | C     | Student_1
+          1 | Course_4 | D     | Student_1
+          1 | Course_5 | A     | Student_1
+(5 rows)
+
+
+════════════════════════════════════════════
+  Q04  (q04.sql)
+════════════════════════════════════════════
+ s_id |    name    | e_id | course 
+------+------------+------+--------
+      |            | 1001 | AI
+      |            | 1010 | ML
+   10 | Student_10 |      | 
+   20 | Student_20 |      | 
+   30 | Student_30 |      | 
+(5 rows)
+
+
+════════════════════════════════════════════
+  Q05  (q05.sql)
+════════════════════════════════════════════
+ student_id |    name    
+------------+------------
+         10 | Student_10
+         20 | Student_20
+         30 | Student_30
+         40 | Student_40
+         50 | Student_50
+(5 rows)
+
+
+════════════════════════════════════════════
+  Q06  (q06.sql)
+════════════════════════════════════════════
+ student_id |   name    
+------------+-----------
+          1 | Student_1
+          2 | Student_2
+          3 | Student_3
+          4 | Student_4
+          5 | Student_5
+(5 rows)
+
+
+════════════════════════════════════════════
+  Q07  (q07.sql)
+════════════════════════════════════════════
+ customer_id | customer_name | order_count | total_amount 
+-------------+---------------+-------------+--------------
+           1 | Customer_1    |           6 |     16530.00
+           2 | Customer_2    |           6 |     12608.06
+           3 | Customer_3    |           6 |     12686.12
+           4 | Customer_4    |           6 |     12764.18
+           5 | Customer_5    |           6 |     12842.24
+(5 rows)
+
+
+════════════════════════════════════════════
+  Q08  (q08.sql)
+════════════════════════════════════════════
+ customer_name | total_amount 
+---------------+--------------
+ Customer_154  |     19467.18
+ Customer_153  |     19389.12
+ Customer_152  |     19311.06
+ Customer_151  |     19233.00
+ Customer_150  |     19154.94
+ Customer_149  |     19076.88
+ Customer_148  |     18998.82
+ Customer_147  |     18920.76
+ Customer_146  |     18842.70
+ Customer_145  |     18764.64
+(10 rows)
+
+
+════════════════════════════════════════════
+  Q09  (q09.sql)
+════════════════════════════════════════════
+ emp_id | employee | manager 
+--------+----------+---------
+      1 | CEO      | 
+      2 | Mgr_2    | CEO
+      3 | Mgr_3    | CEO
+      4 | Mgr_4    | CEO
+      5 | Mgr_5    | CEO
+(5 rows)
+
+
+════════════════════════════════════════════
+  Q10  (q10.sql)
+════════════════════════════════════════════
+  course   | student_count 
+-----------+---------------
+ Course_1  |           144
+ Course_10 |            96
+ Course_11 |           144
+ Course_12 |            48
+ Course_13 |            96
+ Course_14 |            96
+ Course_15 |           144
+ Course_16 |            96
+ Course_17 |           144
+ Course_18 |            96
+ Course_19 |           144
+ Course_2  |            47
+ Course_20 |            96
+ Course_3  |            94
+ Course_4  |            94
+ Course_5  |           141
+ Course_6  |            94
+ Course_7  |           141
+ Course_8  |            94
+ Course_9  |           144
+ DB        |           107
+           |           100
+(22 rows)
+
+
+════════════════════════════════════════════
+  Q11  (q11.sql)
+════════════════════════════════════════════
+ student_id |   name    
+------------+-----------
+          1 | Student_1
+          2 | Student_2
+          3 | Student_3
+          4 | Student_4
+          5 | Student_5
+(5 rows)
+
+
+════════════════════════════════════════════
+  Q12  (q12.sql)
+════════════════════════════════════════════
+DROP TABLE
+SELECT 23
+  course   | enroll_count | owner_manager 
+-----------+--------------+---------------
+ AI        |            1 | Mgr_5
+ Course_1  |          144 | Mgr_11
+ Course_10 |           96 | Mgr_10
+ Course_11 |          144 | Mgr_11
+ Course_12 |           48 | Mgr_2
+ Course_13 |           96 | Mgr_3
+ Course_14 |           96 | Mgr_4
+ Course_15 |          144 | Mgr_5
+ Course_16 |           96 | Mgr_6
+ Course_17 |          144 | Mgr_7
+ Course_18 |           96 | Mgr_8
+ Course_19 |          144 | Mgr_9
+ Course_2  |           47 | Mgr_2
+ Course_20 |           96 | Mgr_10
+ Course_3  |           94 | Mgr_3
+ Course_4  |           94 | Mgr_4
+ Course_5  |          141 | Mgr_5
+ Course_6  |           94 | Mgr_6
+ Course_7  |          141 | Mgr_7
+ Course_8  |           94 | Mgr_8
+ Course_9  |          144 | Mgr_9
+ DB        |          107 | Mgr_8
+ ML        |            1 | Mgr_8
+(23 rows)
+
+
+════════════════════════════════════════════
+  Q13  (q13.sql)
+════════════════════════════════════════════
+ student_id |   name    |  course   
+------------+-----------+-----------
+          1 | Student_1 | AI
+          1 | Student_1 | Course_1
+          1 | Student_1 | Course_10
+          1 | Student_1 | Course_11
+          1 | Student_1 | Course_12
+          1 | Student_1 | Course_13
+          1 | Student_1 | Course_14
+          1 | Student_1 | Course_15
+          1 | Student_1 | Course_16
+          1 | Student_1 | Course_17
+          1 | Student_1 | Course_18
+          1 | Student_1 | Course_19
+          1 | Student_1 | Course_2
+          1 | Student_1 | Course_20
+          1 | Student_1 | Course_3
+          1 | Student_1 | Course_4
+          1 | Student_1 | Course_5
+          1 | Student_1 | Course_6
+          1 | Student_1 | Course_7
+          1 | Student_1 | Course_8
+          1 | Student_1 | Course_9
+          1 | Student_1 | DB
+          1 | Student_1 | ML
+          2 | Student_2 | AI
+          2 | Student_2 | Course_1
+          2 | Student_2 | Course_10
+          2 | Student_2 | Course_11
+          2 | Student_2 | Course_12
+          2 | Student_2 | Course_13
+          2 | Student_2 | Course_14
+          2 | Student_2 | Course_15
+          2 | Student_2 | Course_16
+          2 | Student_2 | Course_17
+          2 | Student_2 | Course_18
+          2 | Student_2 | Course_19
+          2 | Student_2 | Course_2
+          2 | Student_2 | Course_20
+          2 | Student_2 | Course_3
+          2 | Student_2 | Course_4
+          2 | Student_2 | Course_5
+          2 | Student_2 | Course_6
+          2 | Student_2 | Course_7
+          2 | Student_2 | Course_8
+          2 | Student_2 | Course_9
+          2 | Student_2 | DB
+          2 | Student_2 | ML
+          3 | Student_3 | AI
+          3 | Student_3 | Course_1
+          3 | Student_3 | Course_10
+          3 | Student_3 | Course_11
+          3 | Student_3 | Course_12
+          3 | Student_3 | Course_13
+          3 | Student_3 | Course_14
+          3 | Student_3 | Course_15
+          3 | Student_3 | Course_16
+          3 | Student_3 | Course_17
+          3 | Student_3 | Course_18
+          3 | Student_3 | Course_19
+          3 | Student_3 | Course_2
+          3 | Student_3 | Course_20
+          3 | Student_3 | Course_3
+          3 | Student_3 | Course_4
+          3 | Student_3 | Course_5
+          3 | Student_3 | Course_6
+          3 | Student_3 | Course_7
+          3 | Student_3 | Course_8
+          3 | Student_3 | Course_9
+          3 | Student_3 | DB
+          3 | Student_3 | ML
+          4 | Student_4 | AI
+          4 | Student_4 | Course_1
+          4 | Student_4 | Course_10
+          4 | Student_4 | Course_11
+          4 | Student_4 | Course_12
+          4 | Student_4 | Course_13
+          4 | Student_4 | Course_14
+          4 | Student_4 | Course_15
+          4 | Student_4 | Course_16
+          4 | Student_4 | Course_17
+          4 | Student_4 | Course_18
+          4 | Student_4 | Course_19
+          4 | Student_4 | Course_2
+          4 | Student_4 | Course_20
+          4 | Student_4 | Course_3
+          4 | Student_4 | Course_4
+          4 | Student_4 | Course_5
+          4 | Student_4 | Course_6
+          4 | Student_4 | Course_7
+          4 | Student_4 | Course_8
+          4 | Student_4 | Course_9
+          4 | Student_4 | DB
+          4 | Student_4 | ML
+          5 | Student_5 | AI
+          5 | Student_5 | Course_1
+          5 | Student_5 | Course_10
+          5 | Student_5 | Course_11
+          5 | Student_5 | Course_12
+          5 | Student_5 | Course_13
+          5 | Student_5 | Course_14
+          5 | Student_5 | Course_15
+(100 rows)
+
+
+════════════════════════════════════════════
+  Q14  (q14.sql)
+════════════════════════════════════════════
+ student_id |   name    | major 
+------------+-----------+-------
+          1 | Student_1 | EE
+          2 | Student_2 | ME
+          3 | Student_3 | CE
+          4 | Student_4 | BIO
+          5 | Student_5 | CS
+(5 rows)
+
+
+════════════════════════════════════════════
+  Q15  (q15.sql)
+════════════════════════════════════════════
+ student_id |    name    | gpa  
+------------+------------+------
+         15 | Student_15 | 3.50
+         16 | Student_16 | 3.60
+         17 | Student_17 | 3.70
+         18 | Student_18 | 3.80
+         19 | Student_19 | 3.90
+(5 rows)
+
+
+════════════════════════════════════════════
+  Q16  (q16.sql)
+════════════════════════════════════════════
+ student_id |    name    | major | gpa  
+------------+------------+-------+------
+         15 | Student_15 | CS    | 3.50
+         16 | Student_16 | EE    | 3.60
+         17 | Student_17 | ME    | 3.70
+         18 | Student_18 | CE    | 3.80
+         19 | Student_19 | BIO   | 3.90
+(5 rows)
+
+
+════════════════════════════════════════════
+  Q17  (q17.sql)
+════════════════════════════════════════════
+ student_id |   name    
+------------+-----------
+          1 | Student_1
+          2 | Student_2
+          3 | Student_3
+          4 | Student_4
+          5 | Student_5
+(5 rows)
+
+
+════════════════════════════════════════════
+  Q18  (q18.sql)
+════════════════════════════════════════════
+ student_id |    name    
+------------+------------
+         10 | Student_10
+         20 | Student_20
+         30 | Student_30
+         40 | Student_40
+         50 | Student_50
+(5 rows)
+
+
+════════════════════════════════════════════
+  Q19  (q19.sql)
+════════════════════════════════════════════
+ student_id |   name    | gpa  
+------------+-----------+------
+          1 | Student_1 | 2.10
+          2 | Student_2 | 2.20
+          3 | Student_3 | 2.30
+          4 | Student_4 | 2.40
+          5 | Student_5 | 2.50
+(5 rows)
+
+
+════════════════════════════════════════════
+  Q20  (q20.sql)
+════════════════════════════════════════════
+ student_id |    name    
+------------+------------
+          5 | Student_5
+         10 | Student_10
+         15 | Student_15
+         19 | Student_19
+         20 | Student_20
+(5 rows)
+
+
+════════════════════════════════════════════
+  Q21  (q21.sql)
+════════════════════════════════════════════
+ major | gpa_tier | student_count 
+-------+----------+---------------
+ BIO   | 3.0 미만 |            66
+ BIO   | 3.0~3.5  |            33
+ BIO   | 3.5 초과 |            97
+ BIO   | 소계     |           196
+ CE    | 3.0 미만 |            66
+ CE    | 3.0~3.5  |            33
+ CE    | 3.5 초과 |            97
+ CE    | 소계     |           196
+ CS    | 3.0 미만 |            65
+ CS    | 3.0~3.5  |            66
+ CS    | 3.5 초과 |            65
+ CS    | 소계     |           196
+ EE    | 3.0 미만 |            66
+ EE    | 3.0~3.5  |            33
+ EE    | 3.5 초과 |            97
+ EE    | 소계     |           196
+ HR    | 3.0 미만 |            10
+ HR    | 3.0~3.5  |             1
+ HR    | 3.5 초과 |             9
+ HR    | 소계     |            20
+ ME    | 3.0 미만 |            66
+ ME    | 3.0~3.5  |            33
+ ME    | 3.5 초과 |            97
+ ME    | 소계     |           196
+ 전체  | 소계     |          1000
+(25 rows)
+
+
+════════════════════════════════════════════
+  Q22  (q22.sql)
+════════════════════════════════════════════
+ emp_id |  name   | depth |     path      
+--------+---------+-------+---------------
+      1 | CEO     |     0 | CEO
+    102 | Dev_102 |     1 | CEO > Dev_102
+    112 | Dev_112 |     1 | CEO > Dev_112
+     12 | Dev_12  |     1 | CEO > Dev_12
+    122 | Dev_122 |     1 | CEO > Dev_122
+(5 rows)
+
+ manager | direct_reports 
+---------+----------------
+ CEO     |             40
+ Mgr_10  |             30
+ Mgr_2   |             30
+ Mgr_3   |             30
+ Mgr_4   |             30
+ Mgr_5   |             30
+ Mgr_6   |             30
+ Mgr_7   |             30
+ Mgr_8   |             30
+ Mgr_9   |             30
+(10 rows)
+
+
+════════════════════════════════════════════
+  Q23  (q23.sql)
+════════════════════════════════════════════
+ student_id |    name     | major | gpa  | rn | rnk | drnk | total_in_major 
+------------+-------------+-------+------+----+-----+------+----------------
+         29 | Student_29  | BIO   | 4.90 |  1 |   1 |    1 |            196
+         59 | Student_59  | BIO   | 4.90 |  2 |   1 |    1 |            196
+         89 | Student_89  | BIO   | 4.90 |  3 |   1 |    1 |            196
+         28 | Student_28  | CE    | 4.80 |  1 |   1 |    1 |            196
+         58 | Student_58  | CE    | 4.80 |  2 |   1 |    1 |            196
+         88 | Student_88  | CE    | 4.80 |  3 |   1 |    1 |            196
+         25 | Student_25  | CS    | 4.50 |  1 |   1 |    1 |            196
+         55 | Student_55  | CS    | 4.50 |  2 |   1 |    1 |            196
+         85 | Student_85  | CS    | 4.50 |  3 |   1 |    1 |            196
+         26 | Student_26  | EE    | 4.60 |  1 |   1 |    1 |            196
+         56 | Student_56  | EE    | 4.60 |  2 |   1 |    1 |            196
+         86 | Student_86  | EE    | 4.60 |  3 |   1 |    1 |            196
+        989 | Student_989 | HR    | 4.90 |  1 |   1 |    1 |             20
+        988 | Student_988 | HR    | 4.80 |  2 |   2 |    2 |             20
+        987 | Student_987 | HR    | 4.70 |  3 |   3 |    3 |             20
+         27 | Student_27  | ME    | 4.70 |  1 |   1 |    1 |            196
+         57 | Student_57  | ME    | 4.70 |  2 |   1 |    1 |            196
+         87 | Student_87  | ME    | 4.70 |  3 |   1 |    1 |            196
+(18 rows)
+
+ student_id |    name     | major | gpa  | rn | rnk | drnk | total_in_major 
+------------+-------------+-------+------+----+-----+------+----------------
+         29 | Student_29  | BIO   | 4.90 |  1 |   1 |    1 |            196
+         59 | Student_59  | BIO   | 4.90 |  2 |   1 |    1 |            196
+         89 | Student_89  | BIO   | 4.90 |  3 |   1 |    1 |            196
+         28 | Student_28  | CE    | 4.80 |  1 |   1 |    1 |            196
+         58 | Student_58  | CE    | 4.80 |  2 |   1 |    1 |            196
+         88 | Student_88  | CE    | 4.80 |  3 |   1 |    1 |            196
+         25 | Student_25  | CS    | 4.50 |  1 |   1 |    1 |            196
+         55 | Student_55  | CS    | 4.50 |  2 |   1 |    1 |            196
+         85 | Student_85  | CS    | 4.50 |  3 |   1 |    1 |            196
+         26 | Student_26  | EE    | 4.60 |  1 |   1 |    1 |            196
+         56 | Student_56  | EE    | 4.60 |  2 |   1 |    1 |            196
+         86 | Student_86  | EE    | 4.60 |  3 |   1 |    1 |            196
+        989 | Student_989 | HR    | 4.90 |  1 |   1 |    1 |             20
+        988 | Student_988 | HR    | 4.80 |  2 |   2 |    2 |             20
+        987 | Student_987 | HR    | 4.70 |  3 |   3 |    3 |             20
+         27 | Student_27  | ME    | 4.70 |  1 |   1 |    1 |            196
+         57 | Student_57  | ME    | 4.70 |  2 |   1 |    1 |            196
+         87 | Student_87  | ME    | 4.70 |  3 |   1 |    1 |            196
+(18 rows)
+
+
+════════════════════════════════════════════
+  Q24  (q24.sql)
+════════════════════════════════════════════
+ student_id |  course  | score | prev_score | diff | trend | score_range 
+------------+----------+-------+------------+------+-------+-------------
+          1 | Course_3 |     2 |            |      |       |           3
+          1 | Course_4 |     1 |          2 |   -1 | 하락  |           3
+          1 | Course_5 |     4 |          1 |    3 | 상승  |           3
+          2 | Course_4 |     1 |            |      |       |           3
+          2 | Course_5 |     4 |          1 |    3 | 상승  |           3
+(5 rows)
+
+
+════════════════════════════════════════════
+  Q25  (q25.sql)
+════════════════════════════════════════════
+ order_id | customer_id | amount | running_total | moving_avg_3 | cust_running_total 
+----------+-------------+--------+---------------+--------------+--------------------
+        1 |           2 |  18.01 |         18.01 |        18.01 |              18.01
+        2 |           3 |  31.02 |         49.03 |        24.52 |              31.02
+        3 |           4 |  44.03 |         93.06 |        31.02 |              44.03
+        4 |           5 |  57.04 |        150.10 |        44.03 |              57.04
+        5 |           6 |  70.05 |        220.15 |        57.04 |              70.05
+(5 rows)
+
+ order_id | running_total | total_sum  
+----------+---------------+------------
+     1503 |    3686585.56 | 7365985.00
+(1 row)
+
+

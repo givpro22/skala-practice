@@ -1,0 +1,495 @@
+<meta charset="utf-8">
+<title>[Day 4 종합실습] JOIN·서브쿼리·윈도우함수 복합 쿼리 실습</title>
+<style>
+  @page { size: A4; margin: 10mm 11mm; }
+  * { box-sizing: border-box; }
+  body { font-family:'Apple SD Gothic Neo','Malgun Gothic',-apple-system,sans-serif; color:#1f2937; font-size:10.5pt; line-height:1.62; margin:0; }
+  h1 { font-size:20pt; margin:0 0 4px; color:#111827; }
+  .meta { color:#6b7280; font-size:9.5pt; border-bottom:1px solid #e5e7eb; padding-bottom:10px; margin-bottom:14px; }
+  h2 { font-size:13pt; color:#1d4ed8; margin:16px 0 6px; }
+  h2.qh { margin:0 0 6px; padding-top:2px; }
+  ul { margin:6px 0; padding-left:20px; } li { margin:2px 0; }
+  .sql { background:#f8fafc; border:1px solid #dbe2ea; border-left:3px solid #2563eb; border-radius:6px;
+         padding:8px 12px; margin:6px 0; font-family:'SF Mono',Menlo,monospace; font-size:8.4pt;
+         line-height:1.5; white-space:pre; overflow-x:hidden; }
+  .sql-label { font-size:9pt; color:#2563eb; font-weight:700; margin:6px 0 0; }
+  .res-label { font-size:9pt; color:#059669; font-weight:700; margin:6px 0 0; }
+  .shot { display:block; width:100%; max-width:180mm; margin:6px auto; border-radius:8px;
+          box-shadow:0 1px 4px rgba(0,0,0,.3); break-inside:avoid; }
+  .cap { color:#6b7280; font-size:8.8pt; margin:2px 0 8px; }
+  .pb { page-break-before:always; }
+</style>
+<h1>[Day 4 종합실습] JOIN · 서브쿼리 · 윈도우함수 복합 쿼리 실습</h1>
+<p class="meta">AI 서비스를 위한 SW 기초 Full-stack Engineering — 스마트 데이터 이해 및 활용 &nbsp;|&nbsp; 종합실습-2 &nbsp;|&nbsp; 광주캠퍼스 4반 박영서 &nbsp;|&nbsp; 2026-07-23</p>
+
+<h2>실습 결과 요약</h2>
+<ul>
+  <li>실행환경: <strong>PostgreSQL 17.10</strong> — DB <strong>skala_db</strong> · 스키마 <strong>lab</strong> · 사용자 <strong>skala_user</strong> (일반 권한 롤)</li>
+  <li>데이터: student 1,000 · enroll 2,302(고아 수강 2건 포함) · customers 500 · orders 3,000 · emp 311</li>
+  <li>문항 1~25 전부 실제 실행 — 문항별로 <strong>① psql CLI + ② pgAdmin 4 Query Tool 양쪽 실행 화면</strong>(쿼리+결과 동시 표시) 수록</li>
+  <li>교재 지시(<code>Postgres/MySQL: LIMIT 5</code>)에 따라 대량 결과는 LIMIT 5로 출력 제한, 주석에 전체 행 수 명시 (Q8·Q13은 문항 지정 건수 유지)</li>
+  <li>채점 기준 준수 — 요구사항 1:1 반영(문항 원문을 쿼리 주석으로 표기), <code>SELECT *</code> 미사용(필요 컬럼만 선택)</li>
+  <li>쿼리 2개 문항(12·22·25)은 쿼리별로 각각 실행·캡처, Q23은 서브쿼리·CTE 두 방식 모두 작성</li>
+</ul>
+
+<h2>0. 실습 환경 확인</h2>
+<img class="shot" src="captures/00_env.png" alt="실습 환경 확인">
+<p class="cap">skala_user로 skala_db 접속(\conninfo), lab 스키마 테이블과 테이블별 건수 확인.</p>
+
+<h2 class="qh pb">1. 학생과 수강을 INNER JOIN하여 수강 존재 학생의 과목/성적을 조회</h2>
+<p class="sql-label">SQL</p>
+<div class="sql">-- Q1. 학생과 수강을 INNER JOIN하여 수강 존재 학생의 과목/성적을 조회
+SELECT s.student_id, s.name, e.course, e.grade
+FROM   student s
+JOIN   enroll  e ON e.student_id = s.student_id
+ORDER BY s.student_id, e.course
+LIMIT 5;   -- 출력 확인용 (전체 행 수는 리포트에 별도 표기)</div>
+<p class="res-label">실행 결과 ① — psql</p>
+<img class="shot" src="captures/q01.png" style="width:175mm" alt="q01">
+<p class="res-label">실행 결과 ② — pgAdmin 4 Query Tool</p>
+<img class="shot" src="captures/pgq01.png" style="width:175mm" alt="pgq01">
+<p class="cap">INNER JOIN — 양쪽 매칭 행만 조회 (전체 2,300행 중 상위 5행 표시).</p>
+<h2 class="qh pb">2. 모든 학생 기준으로 수강을 붙이고, 과목(없으면 NULL)까지 보이기</h2>
+<p class="sql-label">SQL</p>
+<div class="sql">-- Q2. 모든 학생 기준으로 수강을 붙이고, 과목(없으면 NULL)까지 보이기 (LEFT JOIN)
+SELECT s.student_id, s.name, e.course
+FROM   student s
+LEFT JOIN enroll e ON e.student_id = s.student_id
+ORDER BY s.student_id, e.course
+LIMIT 5;   -- 출력 확인용 (전체 행 수는 리포트에 별도 표기)</div>
+<p class="res-label">실행 결과 ① — psql</p>
+<img class="shot" src="captures/q02.png" style="width:175mm" alt="q02">
+<p class="res-label">실행 결과 ② — pgAdmin 4 Query Tool</p>
+<img class="shot" src="captures/pgq02.png" style="width:175mm" alt="pgq02">
+<p class="cap">LEFT JOIN — 미수강 학생은 course가 NULL로 표시 (전체 2,400행).</p>
+<h2 class="qh pb">3. 수강이 기준. 학생이 없으면 학생 정보가 NULL (RIGHT JOIN)</h2>
+<p class="sql-label">SQL</p>
+<div class="sql">-- Q3. 수강이 기준. 학생이 없으면 학생 정보가 NULL (RIGHT JOIN)
+SELECT e.student_id, e.course, e.grade, s.name
+FROM   student s
+RIGHT JOIN enroll e ON e.student_id = s.student_id
+ORDER BY (s.student_id IS NULL) DESC,   -- 학생 정보 없는 행(유령)이 위로 오도록
+         e.student_id, e.course
+LIMIT 5;   -- 출력 확인용 (전체 2,302행)</div>
+<p class="res-label">실행 결과 ① — psql</p>
+<img class="shot" src="captures/q03.png" style="width:168mm" alt="q03">
+<p class="res-label">실행 결과 ② — pgAdmin 4 Query Tool</p>
+<img class="shot" src="captures/pgq03.png" style="width:168mm" alt="pgq03">
+<p class="cap">RIGHT JOIN — 학생 정보가 없는 고아 수강(1001·1010)이 name NULL로 상단 표시 (전체 2,302행).</p>
+<h2 class="qh pb">4. 학생/수강 모두 포함 (FULL OUTER JOIN)</h2>
+<p class="sql-label">SQL</p>
+<div class="sql">-- Q4. 학생/수강 모두 포함 (FULL OUTER JOIN)
+SELECT s.student_id AS s_id, s.name, e.student_id AS e_id, e.course
+FROM   student s
+FULL OUTER JOIN enroll e ON e.student_id = s.student_id
+ORDER BY (s.student_id IS NULL) DESC,   -- 비매칭 행(유령 수강, 미수강 학생)이 위로 오도록
+         (e.student_id IS NULL) DESC,
+         COALESCE(s.student_id, e.student_id), e.course
+LIMIT 5;   -- 출력 확인용 (전체 2,402행)</div>
+<p class="res-label">실행 결과 ① — psql</p>
+<img class="shot" src="captures/q04.png" style="width:161mm" alt="q04">
+<p class="res-label">실행 결과 ② — pgAdmin 4 Query Tool</p>
+<img class="shot" src="captures/pgq04.png" style="width:161mm" alt="pgq04">
+<p class="cap">FULL OUTER JOIN — 고아 수강 2건 + 미수강 학생이 함께 포함 (전체 2,402행).</p>
+<h2 class="qh pb">5. 한 번도 수강하지 않은 학생 목록</h2>
+<p class="sql-label">SQL</p>
+<div class="sql">-- Q5. 한 번도 수강하지 않은 학생 목록 (LEFT JOIN + IS NULL)
+SELECT s.student_id, s.name
+FROM   student s
+LEFT JOIN enroll e ON e.student_id = s.student_id
+WHERE  e.student_id IS NULL
+ORDER BY s.student_id
+LIMIT 5;   -- 출력 확인용 (전체 행 수는 리포트에 별도 표기)</div>
+<p class="res-label">실행 결과 ① — psql</p>
+<img class="shot" src="captures/q05.png" style="width:171mm" alt="q05">
+<p class="res-label">실행 결과 ② — pgAdmin 4 Query Tool</p>
+<img class="shot" src="captures/pgq05.png" style="width:171mm" alt="pgq05">
+<p class="cap">LEFT JOIN + IS NULL 안티 조인 — 미수강 학생 전체 100명 중 상위 5명.</p>
+<h2 class="qh pb">6. 한 과목 이상 수강한 학생 목록 (중복 제거)</h2>
+<p class="sql-label">SQL</p>
+<div class="sql">-- Q6. 한 과목 이상 수강한 학생 목록 (중복 제거)
+SELECT DISTINCT s.student_id, s.name
+FROM   student s
+JOIN   enroll  e ON e.student_id = s.student_id
+ORDER BY s.student_id
+LIMIT 5;   -- 출력 확인용 (전체 행 수는 리포트에 별도 표기)</div>
+<p class="res-label">실행 결과 ① — psql</p>
+<img class="shot" src="captures/q06.png" style="width:175mm" alt="q06">
+<p class="res-label">실행 결과 ② — pgAdmin 4 Query Tool</p>
+<img class="shot" src="captures/pgq06.png" style="width:175mm" alt="pgq06">
+<p class="cap">JOIN + DISTINCT 세미 조인 — 수강 이력 보유 학생 900명 중 상위 5명.</p>
+<h2 class="qh pb">7. 고객별 주문건수/총액</h2>
+<p class="sql-label">SQL</p>
+<div class="sql">-- Q7. 고객별 주문건수/총액
+SELECT c.customer_id, c.customer_name, COUNT(*) AS order_count, SUM(o.amount) AS total_amount
+FROM   customers c
+JOIN   orders o ON o.customer_id = c.customer_id
+GROUP BY c.customer_id, c.customer_name
+ORDER BY c.customer_id
+LIMIT 5;   -- 출력 확인용 (전체 행 수는 리포트에 별도 표기)</div>
+<p class="res-label">실행 결과 ① — psql</p>
+<img class="shot" src="captures/q07.png" style="width:168mm" alt="q07">
+<p class="res-label">실행 결과 ② — pgAdmin 4 Query Tool</p>
+<img class="shot" src="captures/pgq07.png" style="width:168mm" alt="pgq07">
+<p class="cap">고객별 집계 — 교재 배경대로 고객 1명당 정확히 6건의 주문 확인 (전체 500행).</p>
+<h2 class="qh pb">8. 총액 상위 10명과 금액</h2>
+<p class="sql-label">SQL</p>
+<div class="sql">-- Q8. 총액 상위 10명과 금액
+SELECT c.customer_name, SUM(o.amount) AS total_amount
+FROM   customers c
+JOIN   orders o ON o.customer_id = c.customer_id
+GROUP BY c.customer_name
+ORDER BY total_amount DESC
+LIMIT 10;</div>
+<p class="res-label">실행 결과 ① — psql</p>
+<img class="shot" src="captures/q08.png" style="width:154mm" alt="q08">
+<p class="res-label">실행 결과 ② — pgAdmin 4 Query Tool</p>
+<img class="shot" src="captures/pgq08.png" style="width:154mm" alt="pgq08">
+<p class="cap">ORDER BY 총액 DESC + LIMIT 10 — 상위 10명 전체 표시 (문항 지정 건수).</p>
+<h2 class="qh pb">9. 모든 직원과 그 매니저 이름</h2>
+<p class="sql-label">SQL</p>
+<div class="sql">-- Q9. 모든 직원과 그 매니저 이름 (CEO는 매니저가 없어 NULL, LEFT SELF JOIN)
+SELECT e.name AS employee, m.name AS manager
+FROM   emp e
+LEFT JOIN emp m ON m.emp_id = e.manager_id
+ORDER BY e.emp_id
+LIMIT 5;   -- 출력 확인용 (전체 311행)</div>
+<p class="res-label">실행 결과 ① — psql</p>
+<img class="shot" src="captures/q09.png" style="width:179mm" alt="q09">
+<p class="res-label">실행 결과 ② — pgAdmin 4 Query Tool</p>
+<img class="shot" src="captures/pgq09.png" style="width:179mm" alt="pgq09">
+<p class="cap">LEFT SELF JOIN — 문항 요구대로 직원·매니저 이름만 선택, CEO는 manager가 NULL (전체 311행).</p>
+<h2 class="qh pb">10. “모든 학생 기준”으로 과목 분포 → LEFT JOIN + 집계</h2>
+<p class="sql-label">SQL</p>
+<div class="sql">-- Q10. &quot;모든 학생 기준&quot;으로 과목 분포 → LEFT JOIN + 집계 (미수강은 NULL 그룹으로 표시)
+SELECT e.course, COUNT(s.student_id) AS student_count
+FROM   student s
+LEFT JOIN enroll e ON e.student_id = s.student_id
+GROUP BY e.course
+ORDER BY e.course NULLS LAST;</div>
+<p class="res-label">실행 결과 ① — psql</p>
+<img class="shot" src="captures/q10.png" style="width:128mm" alt="q10">
+<p class="res-label">실행 결과 ② — pgAdmin 4 Query Tool</p>
+<img class="shot" src="captures/pgq10.png" style="width:128mm" alt="pgq10">
+<p class="cap">LEFT JOIN 후 과목별 집계 — 미수강 그룹(NULL) 포함 (전체 22행: 수강 과목 21종 + NULL 그룹. 고아 수강 전용 과목 AI·ML은 학생 기준 조인이라 미포함).</p>
+<h2 class="qh pb">11. DB 과목을 듣지 않은 모든 학생을 나열</h2>
+<p class="sql-label">SQL</p>
+<div class="sql">-- Q11. DB 과목을 듣지 않은 모든 학생을 나열 (NOT EXISTS)
+SELECT s.student_id, s.name
+FROM   student s
+WHERE  NOT EXISTS (
+  SELECT 1 FROM enroll e
+  WHERE  e.student_id = s.student_id AND e.course = &#x27;DB&#x27;
+)
+ORDER BY s.student_id
+LIMIT 5;   -- 출력 확인용 (전체 행 수는 리포트에 별도 표기)</div>
+<p class="res-label">실행 결과 ① — psql</p>
+<img class="shot" src="captures/q11.png" style="width:157mm" alt="q11">
+<p class="res-label">실행 결과 ② — pgAdmin 4 Query Tool</p>
+<img class="shot" src="captures/pgq11.png" style="width:157mm" alt="pgq11">
+<p class="cap">NOT EXISTS 안티 조인 — DB 미수강 893명 중 상위 5명.</p>
+<h2 class="qh pb">12. course_owner(course, manager_id) 생성 후 과목별 수강 인원 + 책임 매니저 이름 리포트</h2>
+<p class="sql-label">SQL</p>
+<div class="sql">-- Q12. 과목별 매니저 운영 책임 가정: course_owner(course, manager_id) 생성 후
+--      과목별 수강 인원 + 책임 매니저 이름 리포트
+DROP TABLE IF EXISTS course_owner;
+
+CREATE TABLE course_owner AS
+SELECT c.course,
+       m.emp_id AS manager_id
+FROM  (SELECT DISTINCT course FROM enroll) c
+JOIN LATERAL (
+  SELECT emp_id
+  FROM   emp
+  WHERE  name LIKE &#x27;Mgr\_%&#x27;
+  ORDER  BY emp_id
+  OFFSET (ascii(right(c.course, 1)) % 10) LIMIT 1   -- 과목→매니저 임의 매핑
+) m ON TRUE;
+
+SELECT co.course,
+       COUNT(e.student_id) AS enroll_count,
+       m.name              AS owner_manager
+FROM   course_owner co
+LEFT JOIN enroll e ON e.course = co.course
+JOIN   emp m ON m.emp_id = co.manager_id
+GROUP BY co.course, m.name
+ORDER BY co.course;</div>
+<p class="res-label">실행 결과 ① — psql (a — course_owner 생성)</p>
+<img class="shot" src="captures/q12a.png" alt="q12a">
+<p class="res-label pb">실행 결과 ① — psql (b — 과목별 리포트)</p>
+<img class="shot" src="captures/q12b.png" style="width:169mm" alt="q12b">
+<p class="res-label">실행 결과 ② — pgAdmin 4 Query Tool</p>
+<img class="shot" src="captures/pgq12.png" style="width:169mm" alt="pgq12">
+<p class="cap">(a) CTAS + LATERAL로 course_owner 23건(과목 23종) 생성 → (b) 과목별 수강 인원 + 책임 매니저 리포트 (23행).</p>
+<h2 class="qh pb">13. 학생 × 과목 전체 조합으로 “학생별 과목 추천 후보” 생성, 샘플 100건</h2>
+<p class="sql-label">SQL</p>
+<div class="sql">-- Q13. 학생 × 과목 전체 조합(CROSS JOIN)으로 &quot;학생별 과목 추천 후보&quot; 생성, 샘플 100건만 조회
+SELECT s.student_id, s.name, c.course
+FROM   student s
+CROSS JOIN (SELECT DISTINCT course FROM enroll) c
+ORDER BY s.student_id, c.course
+LIMIT 100;</div>
+<p class="res-label">실행 결과 ① — psql (쿼리 + 상단)</p>
+<img class="shot" src="captures/q13.png" alt="q13">
+<p class="res-label pb">실행 결과 ① — psql (말미 — 100개 행 확인)</p>
+<img class="shot" src="captures/q13b.png" style="width:158mm" alt="q13b">
+<p class="res-label">실행 결과 ② — pgAdmin 4 Query Tool</p>
+<img class="shot" src="captures/pgq13.png" style="width:158mm" alt="pgq13">
+<p class="cap">CROSS JOIN — 학생 1,000명 × 과목 23종(고아 수강의 AI·ML 포함) 조합 중 샘플 100건(문항 지정)만 조회. psql 화면은 쿼리+상단 / 말미 &quot;(100개 행)&quot; 2장 구성.</p>
+<h2 class="qh pb">14. 스칼라 서브쿼리(SELECT 절)로 학생 + 소속 학과명 붙이기</h2>
+<p style="color:#4b5563;font-size:9pt;margin:0 0 2px;">※ 여기서 <strong>"붙이기"</strong>는 학생 정보와 소속 학과명 컬럼을 <strong>연속해서(붙여서) 출력</strong>하는 것으로 해석함 — 스칼라 서브쿼리로 구한 학과명(major)을 student_id·name 옆에 컬럼으로 나란히 붙여 출력하였다.</p>
+<p class="sql-label">SQL</p>
+<div class="sql">-- Q14. 스칼라 서브쿼리(SELECT 절)로 학생 + 소속 학과명 붙이기
+SELECT s.student_id,
+       s.name,
+       (SELECT s2.major FROM student s2 WHERE s2.student_id = s.student_id) AS major
+FROM   student s
+ORDER BY s.student_id
+LIMIT 5;   -- 출력 확인용 (전체 행 수는 리포트에 별도 표기)</div>
+<p class="res-label">실행 결과 ① — psql</p>
+<img class="shot" src="captures/q14.png" style="width:175mm" alt="q14">
+<p class="res-label">실행 결과 ② — pgAdmin 4 Query Tool</p>
+<img class="shot" src="captures/pgq14.png" style="width:175mm" alt="pgq14">
+<p class="cap">SELECT 절 스칼라 서브쿼리로 행마다 학과명을 붙임 (전체 1,000행).</p>
+<h2 class="qh pb">15. 평균 GPA보다 높은 학생 (WHERE 서브쿼리)</h2>
+<p class="sql-label">SQL</p>
+<div class="sql">-- Q15. 평균 GPA보다 높은 학생 (WHERE 서브쿼리)
+SELECT student_id, name, gpa
+FROM   student
+WHERE  gpa &gt; (SELECT AVG(gpa) FROM student)
+ORDER BY student_id
+LIMIT 5;   -- 출력 확인용 (전체 행 수는 리포트에 별도 표기)</div>
+<p class="res-label">실행 결과 ① — psql</p>
+<img class="shot" src="captures/q15.png" style="width:179mm" alt="q15">
+<p class="res-label">실행 결과 ② — pgAdmin 4 Query Tool</p>
+<img class="shot" src="captures/pgq15.png" style="width:179mm" alt="pgq15">
+<p class="cap">WHERE 서브쿼리 — 전체 평균 GPA(≈3.44) 초과 495명 중 상위 5명.</p>
+<h2 class="qh pb">16. 자신의 학과 평균 GPA보다 높은 학생 (Correlated subquery)</h2>
+<p class="sql-label">SQL</p>
+<div class="sql">-- Q16. 자신의 학과 평균 GPA보다 높은 학생 (Correlated subquery)
+SELECT s.student_id, s.name, s.major, s.gpa
+FROM   student s
+WHERE  s.gpa &gt; (SELECT AVG(s2.gpa) FROM student s2 WHERE s2.major = s.major)
+ORDER BY s.student_id
+LIMIT 5;   -- 출력 확인용 (전체 행 수는 리포트에 별도 표기)</div>
+<p class="res-label">실행 결과 ① — psql</p>
+<img class="shot" src="captures/q16.png" style="width:178mm" alt="q16">
+<p class="res-label">실행 결과 ② — pgAdmin 4 Query Tool</p>
+<img class="shot" src="captures/pgq16.png" style="width:178mm" alt="pgq16">
+<p class="cap">상관 서브쿼리 — 행마다 자기 학과 평균과 비교, 495명 중 상위 5명.</p>
+<h2 class="qh pb">17. 수강(enroll) 기록이 있는 학생만 (EXISTS)</h2>
+<p class="sql-label">SQL</p>
+<div class="sql">-- Q17. 수강(enroll) 기록이 있는 학생만 (EXISTS)
+SELECT s.student_id, s.name
+FROM   student s
+WHERE  EXISTS (SELECT 1 FROM enroll e WHERE e.student_id = s.student_id)
+ORDER BY s.student_id
+LIMIT 5;   -- 출력 확인용 (전체 행 수는 리포트에 별도 표기)</div>
+<p class="res-label">실행 결과 ① — psql</p>
+<img class="shot" src="captures/q17.png" style="width:179mm" alt="q17">
+<p class="res-label">실행 결과 ② — pgAdmin 4 Query Tool</p>
+<img class="shot" src="captures/pgq17.png" style="width:179mm" alt="pgq17">
+<p class="cap">EXISTS 세미 조인 — Q6과 동일 결과(900명)를 다른 기법으로 구현.</p>
+<h2 class="qh pb">18. 한 번도 수강하지 않은 학생 (NOT EXISTS)</h2>
+<p class="sql-label">SQL</p>
+<div class="sql">-- Q18. 한 번도 수강하지 않은 학생 (NOT EXISTS)
+SELECT s.student_id, s.name
+FROM   student s
+WHERE  NOT EXISTS (SELECT 1 FROM enroll e WHERE e.student_id = s.student_id)
+ORDER BY s.student_id
+LIMIT 5;   -- 출력 확인용 (전체 행 수는 리포트에 별도 표기)</div>
+<p class="res-label">실행 결과 ① — psql</p>
+<img class="shot" src="captures/q18.png" style="width:179mm" alt="q18">
+<p class="res-label">실행 결과 ② — pgAdmin 4 Query Tool</p>
+<img class="shot" src="captures/pgq18.png" style="width:179mm" alt="pgq18">
+<p class="cap">NOT EXISTS — Q5와 동일 결과(100명)를 다른 기법으로 구현.</p>
+<h2 class="qh pb">19. HR 학과 학생 일부와의 비교 데모 (&gt; ANY)</h2>
+<p class="sql-label">SQL</p>
+<div class="sql">-- Q19. HR 학과 학생 일부와의 비교 데모 (&gt; ANY: HR 학생 중 한 명보다라도 GPA가 높으면 포함)
+SELECT student_id, name, gpa
+FROM   student
+WHERE  gpa &gt; ANY (SELECT gpa FROM student WHERE major = &#x27;HR&#x27;)
+ORDER BY student_id
+LIMIT 5;   -- 출력 확인용 (전체 행 수는 리포트에 별도 표기)</div>
+<p class="res-label">실행 결과 ① — psql</p>
+<img class="shot" src="captures/q19.png" style="width:179mm" alt="q19">
+<p class="res-label">실행 결과 ② — pgAdmin 4 Query Tool</p>
+<img class="shot" src="captures/pgq19.png" style="width:179mm" alt="pgq19">
+<p class="cap">&gt; ANY — HR 학과 최저 GPA(2.0)보다 높으면 포함, 967명 중 상위 5명.</p>
+<h2 class="qh pb">20. CS 학과 학생 또는 DB 과목을 수강한 학생 목록 (UNION)</h2>
+<p class="sql-label">SQL</p>
+<div class="sql">-- Q20. CS 학과 학생 또는 DB 과목을 수강한 학생 목록 (UNION으로 중복 제거)
+SELECT s.student_id, s.name
+FROM   student s
+WHERE  s.major = &#x27;CS&#x27;
+UNION
+SELECT s.student_id, s.name
+FROM   student s
+JOIN   enroll e ON e.student_id = s.student_id
+WHERE  e.course = &#x27;DB&#x27;
+ORDER BY student_id
+LIMIT 5;   -- 출력 확인용 (전체 행 수는 리포트에 별도 표기)</div>
+<p class="res-label">실행 결과 ① — psql</p>
+<img class="shot" src="captures/q20.png" style="width:149mm" alt="q20">
+<p class="res-label">실행 결과 ② — pgAdmin 4 Query Tool</p>
+<img class="shot" src="captures/pgq20.png" style="width:149mm" alt="pgq20">
+<p class="cap">UNION — CS 학과(196명) ∪ DB 수강생 = 중복 제거 후 290명 중 상위 5명.</p>
+<h2 class="qh pb">21. 학과별·GPA 구간별 인원 집계 — ROLLUP 소계/총계 + GROUPING 라벨</h2>
+<p class="sql-label">SQL</p>
+<div class="sql">-- Q21. 학과별·GPA 구간별 인원 집계 + ROLLUP 소계/총계
+--      - gpa_tier 파생 컬럼(3.0 미만 / 3.0~3.5 / 3.5 초과)
+--      - GROUP BY ROLLUP(major, gpa_tier), GROUPING(major)으로 &#x27;전체&#x27; 라벨
+--      - 소계 행은 하단 정렬
+SELECT CASE WHEN GROUPING(t.major)    = 1 THEN &#x27;전체&#x27; ELSE t.major    END AS major,
+       CASE WHEN GROUPING(t.gpa_tier) = 1 THEN &#x27;소계&#x27; ELSE t.gpa_tier END AS gpa_tier,
+       COUNT(*) AS student_count
+FROM (
+  SELECT major,
+         CASE WHEN gpa &lt; 3.0 THEN &#x27;3.0 미만&#x27;
+              WHEN gpa &lt;= 3.5 THEN &#x27;3.0~3.5&#x27;
+              ELSE &#x27;3.5 초과&#x27;
+         END AS gpa_tier
+  FROM student
+) t
+GROUP BY ROLLUP(t.major, t.gpa_tier)
+ORDER BY GROUPING(t.major), t.major, GROUPING(t.gpa_tier), t.gpa_tier;</div>
+<p class="res-label">실행 결과 ① — psql</p>
+<img class="shot" src="captures/q21.png" style="width:162mm" alt="q21">
+<p class="res-label pb">실행 결과 ② — pgAdmin 4 Query Tool</p>
+<img class="shot" src="captures/pgq21.png" alt="pgq21">
+<p class="cap">ROLLUP(major, gpa_tier) + GROUPING — 학과×구간 + 학과 소계 + 총계(&#x27;전체&#x27;) 25행, 소계는 하단 정렬.</p>
+<h2 class="qh pb">22. WITH RECURSIVE 조직 트리 (depth/path) + 매니저별 direct_reports</h2>
+<p class="sql-label">SQL</p>
+<div class="sql">-- Q22. WITH RECURSIVE 조직 트리: 모든 직원의 계층 경로(path)와 깊이(depth)
+WITH RECURSIVE org AS (
+  SELECT emp_id, name, manager_id, 0 AS depth, name::text AS path
+  FROM   emp
+  WHERE  manager_id IS NULL                     -- CEO에서 시작
+  UNION ALL
+  SELECT e.emp_id, e.name, e.manager_id, o.depth + 1, o.path || &#x27; &gt; &#x27; || e.name
+  FROM   emp e
+  JOIN   org o ON o.emp_id = e.manager_id
+)
+SELECT emp_id, name, depth, path
+FROM   org
+ORDER BY path
+LIMIT 5;   -- 출력 확인용 (전체 311행)
+
+-- Q22-2. 매니저별 직속 부하 직원 수 (direct_reports)
+SELECT m.name AS manager, COUNT(*) AS direct_reports
+FROM   emp e
+JOIN   emp m ON m.emp_id = e.manager_id
+GROUP BY m.name
+ORDER BY direct_reports DESC, m.name;</div>
+<p class="res-label">실행 결과 ① — psql (쿼리 1 — 조직 트리)</p>
+<img class="shot" src="captures/q22a.png" alt="q22a">
+<p class="res-label pb">실행 결과 ① — psql (쿼리 2 — direct_reports)</p>
+<img class="shot" src="captures/q22b.png" style="width:137mm" alt="q22b">
+<p class="res-label">실행 결과 ② — pgAdmin 4 Query Tool (위: 쿼리 1 · 아래: 쿼리 2)</p>
+<img class="shot" src="captures/pgq22a.png" style="width:137mm" alt="pgq22a">
+<img class="shot" src="captures/pgq22b.png" style="width:137mm" alt="pgq22b">
+<p class="cap">(a) WITH RECURSIVE — depth 0=CEO, path &#x27;CEO &gt; …&#x27; 형식 (전체 311행) → (b) 매니저별 direct_reports 집계 (10행).</p>
+<h2 class="qh pb">23. 학과별 GPA 상위 3명 — Window Function (서브쿼리 방식 + CTE 방식)</h2>
+<p class="sql-label">SQL — 방식 1 (서브쿼리)</p>
+<div class="sql">-- Q23. 학과별 GPA 상위 3명 — Window Function (서브쿼리 방식과 CTE 방식 모두 작성)
+--      ROW_NUMBER(동점 시 student_id 2차) + RANK/DENSE_RANK 비교 + COUNT() OVER
+
+-- [방식 1] 서브쿼리 방식
+SELECT student_id, name, major, gpa, rn, rnk, drnk, total_in_major
+FROM (
+  SELECT student_id, name, major, gpa,
+         ROW_NUMBER() OVER (PARTITION BY major ORDER BY gpa DESC, student_id) AS rn,
+         RANK()       OVER (PARTITION BY major ORDER BY gpa DESC)             AS rnk,
+         DENSE_RANK() OVER (PARTITION BY major ORDER BY gpa DESC)             AS drnk,
+         COUNT(*)     OVER (PARTITION BY major)                               AS total_in_major
+  FROM student
+) x
+WHERE rn &lt;= 3
+ORDER BY major, rn;</div>
+<p class="res-label">실행 결과 ① — psql (방식 1)</p>
+<img class="shot" src="captures/q23a.png" alt="q23a">
+<p class="sql-label pb">SQL — 방식 2 (CTE)</p>
+<div class="sql">-- [방식 2] CTE 방식
+WITH ranked AS (
+  SELECT student_id, name, major, gpa,
+         ROW_NUMBER() OVER (PARTITION BY major ORDER BY gpa DESC, student_id) AS rn,
+         RANK()       OVER (PARTITION BY major ORDER BY gpa DESC)             AS rnk,
+         DENSE_RANK() OVER (PARTITION BY major ORDER BY gpa DESC)             AS drnk,
+         COUNT(*)     OVER (PARTITION BY major)                               AS total_in_major
+  FROM student
+)
+SELECT student_id, name, major, gpa, rn, rnk, drnk, total_in_major
+FROM   ranked
+WHERE  rn &lt;= 3
+ORDER BY major, rn;</div>
+<p class="res-label">실행 결과 ① — psql (방식 2 — 동일 결과)</p>
+<img class="shot" src="captures/q23b.png" alt="q23b">
+<p class="res-label pb">실행 결과 ② — pgAdmin 4 Query Tool (두 방식 연속 실행)</p>
+<img class="shot" src="captures/pgq23.png" alt="pgq23">
+<p class="cap">서브쿼리 방식 + CTE 방식 모두 작성 — 동일한 18행. 동점(3인 공동 1위)의 RANK·DENSE_RANK 동작은 BIO·CE·CS·EE·ME에서, 동점 없는 순차 순위(1·2·3)는 HR에서 확인. total_in_major 포함.</p>
+<h2 class="qh pb">24. LAG()로 이전 수강 과목 대비 성적 변화 (diff·추세·score_range)</h2>
+<p class="sql-label">SQL</p>
+<div class="sql">-- Q24. LAG()로 학생별 이전 수강 과목 대비 성적 변화 (A=4, B=3, C=2, D=1)
+--      diff(현재-이전) + 상승/유지/하락 표시 + 학생별 최고-최저 차(score_range)
+SELECT student_id, course, score, prev_score,
+       diff,
+       CASE WHEN diff &gt; 0 THEN &#x27;상승&#x27;
+            WHEN diff = 0 THEN &#x27;유지&#x27;
+            WHEN diff &lt; 0 THEN &#x27;하락&#x27;
+       END AS trend,
+       score_range
+FROM (
+  SELECT student_id, course, score,
+         LAG(score) OVER (PARTITION BY student_id ORDER BY course)  AS prev_score,
+         score - LAG(score) OVER (PARTITION BY student_id ORDER BY course) AS diff,
+         MAX(score) OVER (PARTITION BY student_id)
+           - MIN(score) OVER (PARTITION BY student_id)              AS score_range
+  FROM (
+    SELECT student_id, course,
+           CASE grade WHEN &#x27;A&#x27; THEN 4 WHEN &#x27;B&#x27; THEN 3
+                      WHEN &#x27;C&#x27; THEN 2 WHEN &#x27;D&#x27; THEN 1 END AS score
+    FROM enroll
+  ) g
+) w
+ORDER BY student_id, course
+LIMIT 5;   -- 출력 확인용 (전체 행 수는 리포트에 별도 표기)</div>
+<p class="res-label pb">실행 결과 ① — psql</p>
+<img class="shot" src="captures/q24.png" style="width:169mm" alt="q24">
+<p class="res-label">실행 결과 ② — pgAdmin 4 Query Tool</p>
+<img class="shot" src="captures/pgq24.png" style="width:169mm" alt="pgq24">
+<p class="cap">LAG + CASE — 이전 과목 점수와의 diff, 상승/유지/하락 추세, 학생별 score_range (전체 2,302행).</p>
+<h2 class="qh pb">25. 누적 주문금액 + 3개 주문 이동평균 (ROWS BETWEEN) + 전체 합 50% 초과 첫 주문</h2>
+<p class="sql-label">SQL</p>
+<div class="sql">-- Q25. orders를 order_id 순으로 정렬하여 누적 주문금액과 3개 주문 이동평균 계산 (ROWS BETWEEN)
+--      + customer_id별 PARTITION 고객별 누적 구매금액
+SELECT order_id, customer_id, amount,
+       SUM(amount) OVER (ORDER BY order_id
+                         ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS running_total,
+       ROUND(AVG(amount) OVER (ORDER BY order_id
+                         ROWS BETWEEN 2 PRECEDING AND CURRENT ROW), 2)     AS moving_avg_3,
+       SUM(amount) OVER (PARTITION BY customer_id ORDER BY order_id
+                         ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS cust_running_total
+FROM   orders
+ORDER BY order_id
+LIMIT 5;   -- 출력 확인용 (전체 3,000행)
+
+-- Q25-2. 누적합이 전체 합의 50%를 초과하는 첫 번째 order_id
+SELECT order_id, running_total, total_sum
+FROM (
+  SELECT order_id,
+         SUM(amount) OVER (ORDER BY order_id
+                           ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS running_total,
+         SUM(amount) OVER () AS total_sum
+  FROM orders
+) t
+WHERE  running_total &gt; total_sum * 0.5
+ORDER BY order_id
+LIMIT 1;</div>
+<p class="res-label">실행 결과 ① — psql (쿼리 1 — 누적합·이동평균)</p>
+<img class="shot" src="captures/q25a.png" alt="q25a">
+<p class="res-label pb">실행 결과 ① — psql (쿼리 2 — 50% 초과 첫 주문)</p>
+<img class="shot" src="captures/q25b.png" style="width:137mm" alt="q25b">
+<p class="res-label">실행 결과 ② — pgAdmin 4 Query Tool (위: 쿼리 1 · 아래: 쿼리 2)</p>
+<img class="shot" src="captures/pgq25a.png" style="width:137mm" alt="pgq25a">
+<img class="shot" src="captures/pgq25b.png" style="width:137mm" alt="pgq25b">
+<p class="cap">(a) 누적합·3개 이동평균·고객별 누적 (전체 3,000행) → (b) 누적합이 전체 합(7,365,985)의 50%를 최초로 초과하는 주문 = order_id 1503.</p>
