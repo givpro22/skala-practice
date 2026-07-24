@@ -15,7 +15,7 @@ ul { margin:6px 0; padding-left:18px; } li { margin:2px 0; }
 .tune-h { margin:6px 0 2px; font-weight:700; color:#0f766e; font-size:10pt; }
 .sql-h { margin:6px 0 1px; font-weight:700; color:#334155; font-size:9pt; break-after:avoid; }
 pre.ddl { background:#0f172a; color:#e2e8f0; border-radius:6px; padding:8px 11px; margin:4px 0 8px;
-          font-family:'SF Mono',Menlo,monospace; font-size:8pt; line-height:1.45; white-space:pre; overflow-x:hidden; break-inside:avoid; }
+          font-family:'SF Mono',Menlo,monospace; font-size:7.6pt; line-height:1.4; white-space:pre-wrap; overflow-wrap:anywhere; break-inside:avoid; }
 .fig { margin:6px 0 4px; break-inside:avoid; text-align:center; }
 .fig img { width:100%; border:1px solid #cbd5e1; border-radius:6px; box-shadow:0 1px 3px rgba(0,0,0,.25); }
 .fig figcaption { color:#64748b; font-size:8.4pt; margin-top:2px; text-align:left; }
@@ -62,15 +62,15 @@ EXPLAIN ANALYZE의 행별 계측 오버헤드로 <b>캡처 이미지의 실행�
 <p class="analysis"><b>병목</b> — orders에 (상태 AND 기간) 필터가 있으나 이를 지원하는 인덱스가 없어 <b>Seq Scan on orders</b>(6,770행 스캔 → 5,337행 필터 제거).</p>
 <p class="tune-h">튜닝: 부분 인덱스 — 매출 상태만 담고 order_ts로 정렬</p>
 <p class="sql-h">SQL — 튜닝 전 쿼리</p>
-<pre class="ddl">SELECT sum(oi.line_total) AS revenue
-FROM   orders o
-JOIN   order_items oi ON oi.order_id = o.order_id
-WHERE  o.order_status IN (&#x27;paid&#x27;,&#x27;shipped&#x27;,&#x27;delivered&#x27;)
-  AND  o.order_ts &gt;= now() - interval &#x27;1 month&#x27;;</pre>
+<pre class="ddl">SELECT sum(oi.line_total) AS revenue                     -- 총매출 = 상세금액 전부 합산
+FROM   orders o                                          -- 주문 헤더(상태/기간 필터 대상)
+JOIN   order_items oi ON oi.order_id = o.order_id        -- 주문 1건에 딸린 상세 라인 연결
+WHERE  o.order_status IN (&#x27;paid&#x27;,&#x27;shipped&#x27;,&#x27;delivered&#x27;)  -- 매출 인정 상태만(취소/환불 제외)
+  AND  o.order_ts &gt;= now() - interval &#x27;1 month&#x27;;         -- 최근 1개월로 기간 한정</pre>
 <p class="sql-h">SQL — 튜닝 후 (인덱스 DDL)</p>
 <pre class="ddl">-- 부분 인덱스만 추가, 쿼리는 튜닝 전과 동일
-CREATE INDEX idx_orders_rev_ts ON orders(order_ts)
-  WHERE order_status IN (&#x27;paid&#x27;,&#x27;shipped&#x27;,&#x27;delivered&#x27;);</pre>
+CREATE INDEX idx_orders_rev_ts ON orders(order_ts)       -- order_ts를 정렬키로
+  WHERE order_status IN (&#x27;paid&#x27;,&#x27;shipped&#x27;,&#x27;delivered&#x27;);  -- 매출 상태만 인덱싱(부분 인덱스)</pre>
 <figure class="fig"><img src="captures/q01_before.png" style="max-width:100%"><figcaption>▲ 튜닝 전 — EXPLAIN (ANALYZE, BUFFERS) baseline 실행계획</figcaption></figure>
 <figure class="fig"><img src="captures/q01_after.png" style="max-width:100%"><figcaption>▲ 튜닝 후 — 인덱스/재작성 적용 후 실행계획</figcaption></figure>
 <figure class="fig"><img src="captures/q01_result.png" style="max-width:70%"><figcaption>▲ 실행 결과 (튜닝 전후 동일 — 정확성 보존)</figcaption></figure>
@@ -85,25 +85,25 @@ CREATE INDEX idx_orders_rev_ts ON orders(order_ts)
 <p class="analysis"><b>병목</b> — AOV용 <b>count(DISTINCT order_id)</b>가 GroupAggregate 입력을 (month, order_id)로 정렬 → <b>14,250행 Sort</b>(quicksort 941kB).</p>
 <p class="tune-h">튜닝: 쿼리 재작성 — 주문 단위 선집계 후 월별 재집계 (count(DISTINCT) 제거)</p>
 <p class="sql-h">SQL — 튜닝 전 쿼리</p>
-<pre class="ddl">SELECT date_trunc(&#x27;month&#x27;, o.order_ts) AS mon,
-       count(DISTINCT o.order_id)        AS orders,
-       sum(oi.line_total)                AS revenue,
-       sum(oi.line_total)/count(DISTINCT o.order_id) AS aov
+<pre class="ddl">SELECT date_trunc(&#x27;month&#x27;, o.order_ts) AS mon,           -- 월 단위 절삭(월별 그룹키)
+       count(DISTINCT o.order_id)        AS orders,       -- 주문수: 조인 중복 제거 위해 DISTINCT
+       sum(oi.line_total)                AS revenue,      -- 월 매출 합계
+       sum(oi.line_total)/count(DISTINCT o.order_id) AS aov  -- AOV = 매출 / 주문수
 FROM   orders o
 JOIN   order_items oi ON oi.order_id = o.order_id
-WHERE  o.order_status IN (&#x27;paid&#x27;,&#x27;shipped&#x27;,&#x27;delivered&#x27;)
-GROUP BY 1 ORDER BY 1;</pre>
+WHERE  o.order_status IN (&#x27;paid&#x27;,&#x27;shipped&#x27;,&#x27;delivered&#x27;)  -- 매출 인정 상태만
+GROUP BY 1 ORDER BY 1;                                   -- 월별로 그룹·정렬</pre>
 <p class="sql-h">SQL — 튜닝 후 (재작성 쿼리)</p>
 <pre class="ddl">-- 주문 단위 선집계 후 월별 재집계 (count(DISTINCT) 제거)
-SELECT date_trunc(&#x27;month&#x27;, order_ts) AS mon, count(*) AS orders,
+SELECT date_trunc(&#x27;month&#x27;, order_ts) AS mon, count(*) AS orders,  -- 이미 주문단위 → count(*)
        sum(order_rev) AS revenue, round(sum(order_rev)/count(*),2) AS aov
 FROM (
-  SELECT o.order_id, o.order_ts, sum(oi.line_total) AS order_rev
+  SELECT o.order_id, o.order_ts, sum(oi.line_total) AS order_rev  -- 주문별 금액 선집계
   FROM   orders o JOIN order_items oi ON oi.order_id = o.order_id
   WHERE  o.order_status IN (&#x27;paid&#x27;,&#x27;shipped&#x27;,&#x27;delivered&#x27;)
   GROUP BY o.order_id, o.order_ts
 ) t
-GROUP BY 1 ORDER BY 1;</pre>
+GROUP BY 1 ORDER BY 1;                                   -- 월별 재집계(HashAggregate)</pre>
 <figure class="fig"><img src="captures/q02_before.png" style="max-width:100%"><figcaption>▲ 튜닝 전 — EXPLAIN (ANALYZE, BUFFERS) baseline 실행계획</figcaption></figure>
 <figure class="fig"><img src="captures/q02_after.png" style="max-width:100%"><figcaption>▲ 튜닝 후 — 인덱스/재작성 적용 후 실행계획</figcaption></figure>
 <figure class="fig"><img src="captures/q02_result.png" style="max-width:70%"><figcaption>▲ 실행 결과 (튜닝 전후 동일 — 정확성 보존)</figcaption></figure>
@@ -118,15 +118,15 @@ GROUP BY 1 ORDER BY 1;</pre>
 <p class="analysis"><b>병목</b> — orders를 (상태 AND 90일) 필터로 Seq Scan 후 order_items·products·categories 4중 조인.</p>
 <p class="tune-h">튜닝: 부분 인덱스(idx_orders_rev_ts) 활용 검토 — 단, 90일은 전체의 약 60%로 저선택도</p>
 <p class="sql-h">SQL — 튜닝 전 쿼리</p>
-<pre class="ddl">SELECT c.category_id, c.category_name, sum(oi.line_total) AS revenue
+<pre class="ddl">SELECT c.category_id, c.category_name, sum(oi.line_total) AS revenue  -- 카테고리별 매출
 FROM   orders o
-JOIN   order_items oi ON oi.order_id = o.order_id
-JOIN   products   p  ON p.product_id = oi.product_id
-JOIN   categories c  ON c.category_id = p.category_id
-WHERE  o.order_status IN (&#x27;paid&#x27;,&#x27;shipped&#x27;,&#x27;delivered&#x27;)
-  AND  o.order_ts &gt;= now() - interval &#x27;90 days&#x27;
+JOIN   order_items oi ON oi.order_id = o.order_id        -- 주문 → 상세
+JOIN   products   p  ON p.product_id = oi.product_id     -- 상세 → 상품
+JOIN   categories c  ON c.category_id = p.category_id    -- 상품 → 카테고리
+WHERE  o.order_status IN (&#x27;paid&#x27;,&#x27;shipped&#x27;,&#x27;delivered&#x27;)  -- 매출 인정 상태만
+  AND  o.order_ts &gt;= now() - interval &#x27;90 days&#x27;          -- 최근 90일
 GROUP BY c.category_id, c.category_name
-ORDER BY revenue DESC LIMIT 10;</pre>
+ORDER BY revenue DESC LIMIT 10;                          -- 매출 상위 10</pre>
 <p class="sql-h">튜닝 후 (계획 분석 — 쿼리 동일)</p>
 <pre class="ddl">-- 90일 ≈ 60% 저선택도 → 옵티마이저가 Seq Scan 유지가 최적(강제 시 악화).
 -- 부분 인덱스는 존재하나 이 조건에선 미채택. 쿼리 동일. (통계 최신화: ANALYZE)
@@ -146,16 +146,16 @@ ORDER BY revenue DESC LIMIT 10;</pre>
 <p class="tune-h">튜닝: 커버링 인덱스 검토 — 단, 전량 집계형이라 인덱스로는 스캔 축소 불가</p>
 <p class="sql-h">SQL — 튜닝 전 쿼리</p>
 <pre class="ddl">SELECT product_id, product_name, revenue,
-       RANK() OVER (ORDER BY revenue DESC) AS rnk
+       RANK() OVER (ORDER BY revenue DESC) AS rnk        -- 매출 내림차순 순위 부여
 FROM (
-  SELECT p.product_id, p.product_name, sum(oi.line_total) AS revenue
+  SELECT p.product_id, p.product_name, sum(oi.line_total) AS revenue  -- 제품별 매출 선집계
   FROM   order_items oi
-  JOIN   orders   o ON o.order_id  = oi.order_id
-  JOIN   products p ON p.product_id = oi.product_id
+  JOIN   orders   o ON o.order_id  = oi.order_id         -- 상태 필터용 주문 조인
+  JOIN   products p ON p.product_id = oi.product_id      -- 상품명 조인
   WHERE  o.order_status IN (&#x27;paid&#x27;,&#x27;shipped&#x27;,&#x27;delivered&#x27;)
   GROUP BY p.product_id, p.product_name
 ) t
-ORDER BY rnk LIMIT 20;</pre>
+ORDER BY rnk LIMIT 20;                                   -- 순위 상위 20</pre>
 <p class="sql-h">튜닝 후 (계획 분석 — 쿼리 동일)</p>
 <pre class="ddl">-- 전량 집계 + RANK() 정렬은 불가피(계산 바운드) → 인덱스로 스캔 축소 불가.
 -- 근본 개선책은 사전 집계(제출물 3의 Materialized View). 쿼리 동일.</pre>
@@ -174,26 +174,26 @@ ORDER BY rnk LIMIT 20;</pre>
 <p class="tune-h">튜닝: 쿼리 재작성 — 주문 단위 선집계 후 고객별 재집계 (count(DISTINCT) 제거)</p>
 <p class="sql-h">SQL — 튜닝 전 쿼리</p>
 <pre class="ddl">SELECT o.customer_id,
-       (now()::date - max(o.order_ts)::date) AS recency_days,
-       count(DISTINCT o.order_id)            AS frequency,
-       sum(oi.line_total)                    AS monetary
+       (now()::date - max(o.order_ts)::date) AS recency_days,  -- R: 마지막 구매 후 경과일
+       count(DISTINCT o.order_id)            AS frequency,     -- F: 주문 빈도(DISTINCT)
+       sum(oi.line_total)                    AS monetary       -- M: 누적 구매액
 FROM   orders o
 JOIN   order_items oi ON oi.order_id = o.order_id
 WHERE  o.order_status IN (&#x27;paid&#x27;,&#x27;shipped&#x27;,&#x27;delivered&#x27;)
 GROUP BY o.customer_id
-ORDER BY monetary DESC LIMIT 20;</pre>
+ORDER BY monetary DESC LIMIT 20;                         -- 금액 상위 20</pre>
 <p class="sql-h">SQL — 튜닝 후 (재작성 쿼리)</p>
 <pre class="ddl">-- 주문 단위 선집계 후 고객별 재집계 (count(DISTINCT) 제거)
 SELECT t.customer_id,
-       (now()::date - max(t.order_ts)::date) AS recency_days,
-       count(*) AS frequency, sum(t.order_rev) AS monetary
+       (now()::date - max(t.order_ts)::date) AS recency_days,  -- R: 최근성
+       count(*) AS frequency, sum(t.order_rev) AS monetary     -- F(=count*), M
 FROM (
-  SELECT o.order_id, o.customer_id, o.order_ts, sum(oi.line_total) AS order_rev
+  SELECT o.order_id, o.customer_id, o.order_ts, sum(oi.line_total) AS order_rev  -- 주문별 선집계
   FROM   orders o JOIN order_items oi ON oi.order_id = o.order_id
   WHERE  o.order_status IN (&#x27;paid&#x27;,&#x27;shipped&#x27;,&#x27;delivered&#x27;)
   GROUP BY o.order_id, o.customer_id, o.order_ts
 ) t
-GROUP BY t.customer_id ORDER BY monetary DESC LIMIT 20;</pre>
+GROUP BY t.customer_id ORDER BY monetary DESC LIMIT 20;  -- 고객별 재집계</pre>
 <figure class="fig"><img src="captures/q05_before.png" style="max-width:100%"><figcaption>▲ 튜닝 전 — EXPLAIN (ANALYZE, BUFFERS) baseline 실행계획</figcaption></figure>
 <figure class="fig"><img src="captures/q05_after.png" style="max-width:100%"><figcaption>▲ 튜닝 후 — 인덱스/재작성 적용 후 실행계획</figcaption></figure>
 <figure class="fig"><img src="captures/q05_result.png" style="max-width:70%"><figcaption>▲ 실행 결과 (튜닝 전후 동일 — 정확성 보존)</figcaption></figure>
@@ -208,27 +208,27 @@ GROUP BY t.customer_id ORDER BY monetary DESC LIMIT 20;</pre>
 <p class="analysis"><b>병목</b> — LATERAL 프로브가 idx_orders_customer_ts로 Index Scan하나 status 필터를 <b>heap에서 재확인</b>(버퍼 hit 5,539).</p>
 <p class="tune-h">튜닝: 복합 부분 인덱스 — status 조건까지 인덱스에 포함</p>
 <p class="sql-h">SQL — 튜닝 전 쿼리</p>
-<pre class="ddl">WITH firsts AS (
-  SELECT customer_id, min(order_ts) AS first_ts
+<pre class="ddl">WITH firsts AS (                                         -- 고객별 첫 구매 시점 산출
+  SELECT customer_id, min(order_ts) AS first_ts          -- 최초 주문시각 = 첫 구매일
   FROM orders WHERE order_status IN (&#x27;paid&#x27;,&#x27;shipped&#x27;,&#x27;delivered&#x27;)
   GROUP BY customer_id
 )
-SELECT count(*) AS cohort,
-       count(*) FILTER (WHERE re.customer_id IS NOT NULL) AS repurchased,
-       round(100.0*count(*) FILTER (WHERE re.customer_id IS NOT NULL)/count(*),2) AS pct_30d
+SELECT count(*) AS cohort,                               -- 첫 구매 고객 수(모수)
+       count(*) FILTER (WHERE re.customer_id IS NOT NULL) AS repurchased,  -- 30일내 재구매자
+       round(100.0*count(*) FILTER (WHERE re.customer_id IS NOT NULL)/count(*),2) AS pct_30d  -- 재구매율%
 FROM   firsts f
-LEFT JOIN LATERAL (
+LEFT JOIN LATERAL (                                      -- 각 첫구매행마다 재주문 탐색(프로브)
   SELECT o2.customer_id FROM orders o2
-  WHERE o2.customer_id = f.customer_id
+  WHERE o2.customer_id = f.customer_id                   -- 동일 고객
     AND o2.order_status IN (&#x27;paid&#x27;,&#x27;shipped&#x27;,&#x27;delivered&#x27;)
-    AND o2.order_ts &gt;  f.first_ts
-    AND o2.order_ts &lt;= f.first_ts + interval &#x27;30 days&#x27;
-  LIMIT 1
+    AND o2.order_ts &gt;  f.first_ts                        -- 첫 구매 이후
+    AND o2.order_ts &lt;= f.first_ts + interval &#x27;30 days&#x27;   -- 30일 이내
+  LIMIT 1                                                -- 1건이면 재구매 성립 → 조기 종료
 ) re ON true;</pre>
 <p class="sql-h">SQL — 튜닝 후 (인덱스 DDL)</p>
 <pre class="ddl">-- status 조건까지 담은 복합 부분 인덱스, 쿼리는 동일 (Index Only Scan 유도)
-CREATE INDEX idx_orders_cust_rev_ts ON orders(customer_id, order_ts)
-  WHERE order_status IN (&#x27;paid&#x27;,&#x27;shipped&#x27;,&#x27;delivered&#x27;);</pre>
+CREATE INDEX idx_orders_cust_rev_ts ON orders(customer_id, order_ts)  -- 프로브 복합키
+  WHERE order_status IN (&#x27;paid&#x27;,&#x27;shipped&#x27;,&#x27;delivered&#x27;);              -- 매출 상태만</pre>
 <figure class="fig"><img src="captures/q06_before.png" style="max-width:100%"><figcaption>▲ 튜닝 전 — EXPLAIN (ANALYZE, BUFFERS) baseline 실행계획</figcaption></figure>
 <figure class="fig"><img src="captures/q06_after.png" style="max-width:100%"><figcaption>▲ 튜닝 후 — 인덱스/재작성 적용 후 실행계획</figcaption></figure>
 <figure class="fig"><img src="captures/q06_result.png" style="max-width:70%"><figcaption>▲ 실행 결과 (튜닝 전후 동일 — 정확성 보존)</figcaption></figure>
@@ -244,14 +244,14 @@ CREATE INDEX idx_orders_cust_rev_ts ON orders(customer_id, order_ts)
 <p class="tune-h">튜닝: 부분 인덱스 — 두 컬럼 비교 조건을 그대로 인덱스 조건으로 (품절 위험 상품만 인덱싱)</p>
 <p class="sql-h">SQL — 튜닝 전 쿼리</p>
 <pre class="ddl">SELECT i.product_id, p.product_name, i.qty_on_hand, i.reorder_point,
-       (i.reorder_point - i.qty_on_hand) AS shortage
+       (i.reorder_point - i.qty_on_hand) AS shortage     -- 부족량 = 재주문점 - 현재고
 FROM   inventory i
-JOIN   products p ON p.product_id = i.product_id
-WHERE  i.qty_on_hand &lt; i.reorder_point
-ORDER BY shortage DESC;</pre>
+JOIN   products p ON p.product_id = i.product_id         -- 상품명 조인
+WHERE  i.qty_on_hand &lt; i.reorder_point                   -- 품절 위험(현재고 &lt; 재주문점)
+ORDER BY shortage DESC;                                  -- 부족량 큰 순</pre>
 <p class="sql-h">SQL — 튜닝 후 (인덱스 DDL)</p>
 <pre class="ddl">-- 두 컬럼 비교 조건을 그대로 담은 부분 인덱스, 쿼리는 동일
-CREATE INDEX idx_inventory_low_stock ON inventory(product_id)
+CREATE INDEX idx_inventory_low_stock ON inventory(product_id)  -- 위험 상품만 인덱싱
   WHERE qty_on_hand &lt; reorder_point;
 --   (600행 소형이라 옵티마이저는 Seq Scan 선택; 인덱스 활용 계획은
 --    SET enable_seqscan=off로 검증 → Bitmap Index Scan 61행)</pre>
@@ -270,11 +270,11 @@ CREATE INDEX idx_inventory_low_stock ON inventory(product_id)
 <p class="tune-h">튜닝: 커버링 인덱스 — product_id로 그룹, rating은 INCLUDE (Index Only Scan)</p>
 <p class="sql-h">SQL — 튜닝 전 쿼리</p>
 <pre class="ddl">SELECT p.product_id, p.product_name,
-       round(avg(r.rating),2) AS avg_rating, count(*) AS review_cnt
+       round(avg(r.rating),2) AS avg_rating, count(*) AS review_cnt  -- 평균평점·리뷰수
 FROM   reviews r
 JOIN   products p ON p.product_id = r.product_id
 GROUP BY p.product_id, p.product_name
-HAVING avg(r.rating) &gt;= 4.5 AND count(*) &gt;= 50
+HAVING avg(r.rating) &gt;= 4.5 AND count(*) &gt;= 50           -- 효자상품: 고평점 &amp; 표본 충분
 ORDER BY avg_rating DESC, review_cnt DESC;</pre>
 <p class="sql-h">SQL — 튜닝 후 (인덱스 DDL)</p>
 <pre class="ddl">-- product_id로 그룹, rating은 INCLUDE 한 커버링 인덱스, 쿼리는 동일
@@ -294,22 +294,22 @@ CREATE INDEX idx_reviews_prod_rating ON reviews(product_id) INCLUDE (rating);
 <p class="analysis"><b>병목</b> — 주문 단위 집계 후 바깥 GroupAggregate가 (used_coupon, order_id) 기준 <b>Sort(5,216행)</b> → 불필요 정렬.</p>
 <p class="tune-h">튜닝: 쿼리 재작성 — 안쪽에서 (order_id, used_coupon) 선집계 → 바깥 HashAggregate</p>
 <p class="sql-h">SQL — 튜닝 전 쿼리</p>
-<pre class="ddl">SELECT (o.coupon_code IS NOT NULL) AS used_coupon,
-       count(DISTINCT o.order_id)       AS orders,
-       round(avg(order_rev),2)          AS aov
+<pre class="ddl">SELECT (o.coupon_code IS NOT NULL) AS used_coupon,       -- 쿠폰 사용 여부(T/F)
+       count(DISTINCT o.order_id)       AS orders,       -- 주문수(DISTINCT)
+       round(avg(order_rev),2)          AS aov           -- 평균 주문금액
 FROM (
-  SELECT o.order_id, o.coupon_code, sum(oi.line_total) AS order_rev
+  SELECT o.order_id, o.coupon_code, sum(oi.line_total) AS order_rev  -- 주문 단위 선집계
   FROM   orders o JOIN order_items oi ON oi.order_id = o.order_id
   WHERE  o.order_status IN (&#x27;paid&#x27;,&#x27;shipped&#x27;,&#x27;delivered&#x27;)
   GROUP BY o.order_id, o.coupon_code
 ) o
-GROUP BY 1;</pre>
+GROUP BY 1;                                              -- 쿠폰 유무로 그룹</pre>
 <p class="sql-h">SQL — 튜닝 후 (재작성 쿼리)</p>
 <pre class="ddl">-- 안쪽에서 (order_id, used_coupon) 선집계 → 바깥 HashAggregate (외부 Sort 제거)
-SELECT used_coupon, count(*) AS orders, round(avg(order_rev),2) AS aov
+SELECT used_coupon, count(*) AS orders, round(avg(order_rev),2) AS aov  -- 쿠폰유무별 집계
 FROM (
   SELECT o.order_id, (o.coupon_code IS NOT NULL) AS used_coupon,
-         sum(oi.line_total) AS order_rev
+         sum(oi.line_total) AS order_rev                 -- 주문 단위 선집계
   FROM   orders o JOIN order_items oi ON oi.order_id = o.order_id
   WHERE  o.order_status IN (&#x27;paid&#x27;,&#x27;shipped&#x27;,&#x27;delivered&#x27;)
   GROUP BY o.order_id, (o.coupon_code IS NOT NULL)
@@ -329,20 +329,20 @@ GROUP BY used_coupon;</pre>
 <p class="analysis"><b>병목</b> — 최근 60일 매출을 고객별 집계. orders를 (상태 AND 60일) 필터로 <b>Seq Scan</b>(3,892행 제거).</p>
 <p class="tune-h">튜닝: 부분 인덱스(idx_orders_rev_ts) 활용 — 60일=약 42%로 Q3보다 선택적</p>
 <p class="sql-h">SQL — 튜닝 전 쿼리</p>
-<pre class="ddl">WITH cust_rev AS (
+<pre class="ddl">WITH cust_rev AS (                                       -- 최근 60일 고객별 매출
   SELECT o.customer_id, sum(oi.line_total) AS rev
   FROM   orders o JOIN order_items oi ON oi.order_id = o.order_id
   WHERE  o.order_status IN (&#x27;paid&#x27;,&#x27;shipped&#x27;,&#x27;delivered&#x27;)
-    AND  o.order_ts &gt;= now() - interval &#x27;60 days&#x27;
+    AND  o.order_ts &gt;= now() - interval &#x27;60 days&#x27;        -- 최근 60일
   GROUP BY o.customer_id
 )
 SELECT customer_id, rev FROM cust_rev
-WHERE rev &gt;= (SELECT percentile_cont(0.99) WITHIN GROUP (ORDER BY rev) FROM cust_rev)
+WHERE rev &gt;= (SELECT percentile_cont(0.99) WITHIN GROUP (ORDER BY rev) FROM cust_rev)  -- 상위1% 임계값 이상
 ORDER BY rev DESC;</pre>
 <p class="sql-h">SQL — 튜닝 후 (인덱스 DDL)</p>
 <pre class="ddl">-- Q1과 동일 부분 인덱스 재사용(60일 ≈ 42%로 선택적), 쿼리는 동일
-CREATE INDEX idx_orders_rev_ts ON orders(order_ts)
-  WHERE order_status IN (&#x27;paid&#x27;,&#x27;shipped&#x27;,&#x27;delivered&#x27;);</pre>
+CREATE INDEX idx_orders_rev_ts ON orders(order_ts)       -- order_ts 정렬키
+  WHERE order_status IN (&#x27;paid&#x27;,&#x27;shipped&#x27;,&#x27;delivered&#x27;);  -- 매출 상태만(부분 인덱스)</pre>
 <figure class="fig"><img src="captures/q10_before.png" style="max-width:100%"><figcaption>▲ 튜닝 전 — EXPLAIN (ANALYZE, BUFFERS) baseline 실행계획</figcaption></figure>
 <figure class="fig"><img src="captures/q10_after.png" style="max-width:100%"><figcaption>▲ 튜닝 후 — 인덱스/재작성 적용 후 실행계획</figcaption></figure>
 <figure class="fig"><img src="captures/q10_result.png" style="max-width:70%"><figcaption>▲ 실행 결과 (튜닝 전후 동일 — 정확성 보존)</figcaption></figure>
@@ -357,19 +357,19 @@ CREATE INDEX idx_orders_rev_ts ON orders(order_ts)
 <p class="analysis"><b>병목</b> — orders = <b>count(DISTINCT order_id)</b> → GroupAggregate 입력 (channel, order_id) <b>14,250행 Sort</b>.</p>
 <p class="tune-h">튜닝: 쿼리 재작성 — 주문 단위 선집계 후 채널별 재집계. f_safe_div로 분모 0 안전 처리</p>
 <p class="sql-h">SQL — 튜닝 전 쿼리</p>
-<pre class="ddl">SELECT o.channel, sum(oi.line_total) AS revenue,
-       count(DISTINCT o.order_id) AS orders,
-       round(f_safe_div(sum(oi.line_total), count(DISTINCT o.order_id)),2) AS safe_aov
+<pre class="ddl">SELECT o.channel, sum(oi.line_total) AS revenue,        -- 채널별 매출
+       count(DISTINCT o.order_id) AS orders,             -- 주문수(DISTINCT)
+       round(f_safe_div(sum(oi.line_total), count(DISTINCT o.order_id)),2) AS safe_aov  -- 안전 AOV(0나눗셈 방지)
 FROM   orders o
 JOIN   order_items oi ON oi.order_id = o.order_id
 WHERE  o.order_status IN (&#x27;paid&#x27;,&#x27;shipped&#x27;,&#x27;delivered&#x27;)
 GROUP BY o.channel ORDER BY revenue DESC;</pre>
 <p class="sql-h">SQL — 튜닝 후 (재작성 쿼리)</p>
 <pre class="ddl">-- 주문 단위 선집계 후 채널별 재집계 (count(DISTINCT) 제거) + 안전 나눗셈 UDF
-SELECT channel, sum(order_rev) AS revenue, count(*) AS orders,
-       round(f_safe_div(sum(order_rev), count(*)),2) AS safe_aov
+SELECT channel, sum(order_rev) AS revenue, count(*) AS orders,  -- 채널별 재집계
+       round(f_safe_div(sum(order_rev), count(*)),2) AS safe_aov  -- 안전 AOV(주문수 0이면 0)
 FROM (
-  SELECT o.order_id, o.channel, sum(oi.line_total) AS order_rev
+  SELECT o.order_id, o.channel, sum(oi.line_total) AS order_rev   -- 주문 단위 선집계
   FROM   orders o JOIN order_items oi ON oi.order_id = o.order_id
   WHERE  o.order_status IN (&#x27;paid&#x27;,&#x27;shipped&#x27;,&#x27;delivered&#x27;)
   GROUP BY o.order_id, o.channel
