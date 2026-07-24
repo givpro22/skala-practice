@@ -21,7 +21,8 @@ ORDER BY shortage DESC;                              -- 부족량 큰 순(급한
 --     WHERE qty_on_hand < reorder_point;
 -- [튜닝 후] SET enable_seqscan=off 시 Bitmap Index Scan(idx_inventory_low_stock)로
 --   61행만 접근(Seq Scan은 600행 전수). 접근 행수/버퍼 감소 확인.
---   단, 600행 소형 테이블이라 절대시간은 Seq Scan(0.13ms)이 최저 → 옵티마이저 판단 정당.
+--   단, 600행 소형 테이블이라 두 방식의 절대시간 차이는 측정 노이즈 수준(sub-ms) →
+--   옵티마이저는 비용 추정이 더 낮은 Seq Scan을 선택(판단 정당).
 --   → 교훈: 부분 인덱스의 이점(스캔 대상 축소)은 재고 테이블이 커질수록 커진다.
 -- =====================================================================
 SET enable_seqscan = off;  -- 인덱스 활용 계획을 명시적으로 확인

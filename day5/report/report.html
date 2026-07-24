@@ -41,15 +41,15 @@ section.q { }
   <li>데이터: customers 3,000 · products 600 · <b>orders 6,770</b> · <b>order_items 18,393</b> · reviews 2,064 · inventory 600</li>
   <li><b>제출물 1</b>: Q1~Q11 각 문항 <b>튜닝 전/후 쿼리·실행계획·결과</b> (병목 → 튜닝 기법 → 개선 검증)</li>
   <li><b>제출물 2</b>: 3가지 조인 알고리즘(Nested Loop / Hash / Merge) 실행계획·특성 비교</li>
-  <li><b>제출물 3</b>: Materialized View(mv_daily_gmv) 생성·갱신·리포트 가속(약 200배) 및 갱신 전략</li>
+  <li><b>제출물 3</b>: Materialized View(mv_daily_gmv) 생성·갱신·리포트 가속(약 860배) 및 갱신 전략</li>
   <li>튜닝 기법: <span style="color:#059669">부분·복합·커버링 인덱스</span>, <span style="color:#7c3aed">쿼리 재작성</span>(count(DISTINCT) 제거·불필요 Sort 제거), <span style="color:#b45309">비용기반 옵티마이저 크로스오버 분석</span></li>
   <li>채점 기준 준수 — 요구사항 1:1 반영 · 필요 컬럼만 선택(<code>SELECT *</code> 미사용) · DB 프로그래밍 <b>주석 처리</b>(모든 SQL 파일에 병목·튜닝 근거 주석)</li>
 </ul>
 
 <p class="note" style="margin-top:6px"><b>측정 방법 및 유의점</b> — 본 데이터는 소규모(orders 6,770·order_items 18,393)라 절대 실행시간이 수 ms대이며,
-EXPLAIN ANALYZE의 행별 계측 오버헤드로 <b>캡처 이미지의 실행시간은 실제보다 부풀려지고 실행마다 편차가 크다</b>.
+EXPLAIN ANALYZE의 행별 계측 오버헤드로 <b>단일 실행 시간은 실행마다 편차가 크다</b>(같은 쿼리도 run마다 수 ms 출렁임).
 따라서 각 문항의 튜닝 효과는 <b>실행계획 노드(스캔·조인·정렬)·버퍼·접근 행수의 변화</b>를 핵심 근거로 판단하였고(EXPLAIN ANALYZE, BUFFERS),
-실행시간은 CLI에서 반복 측정한 <b>정상상태 대표값</b>(종합 요약 표)으로 별도 표기한다. 이 이득은 데이터가 커질수록 확대된다.</p>
+종합 요약 표의 실행시간은 각 문항 캡처의 <b>Execution Time(전→후)</b>을 그대로 옮긴 참고값이다. 이 이득은 데이터가 커질수록 확대된다.</p>
 
 <h2>0. 실습 환경 확인</h2>
 <figure class="fig"><img src="captures/env.png" style="max-width:100%"><figcaption>▲ skala_db / ecom 스키마 접속(\conninfo), 테이블 목록·행 수 확인</figcaption></figure>
@@ -59,7 +59,7 @@ EXPLAIN ANALYZE의 행별 계측 오버헤드로 <b>캡처 이미지의 실행�
 <section class="q">
 <h2>Q1. 지난 한 달간 실제 판매 총액 (paid/shipped/delivered) <span class="badge" style="background:#059669">인덱스 추가</span></h2>
 <p class="req"><b>요구사항</b> — 취소·환불·생성 상태 제외, 최근 1개월(now 기준) 매출 합계. 선택 컬럼: revenue 1개.</p>
-<p class="analysis"><b>병목</b> — orders에 (상태 AND 기간) 필터가 있으나 이를 지원하는 인덱스가 없어 <b>Seq Scan on orders</b>(6,770행 스캔 → 5,337행 필터 제거).</p>
+<p class="analysis"><b>병목</b> — orders에 (상태 AND 기간) 필터가 있으나 이를 지원하는 인덱스가 없어 <b>Seq Scan on orders</b>(6,770행 스캔 → 5,339행 필터 제거).</p>
 <p class="tune-h">튜닝: 부분 인덱스 — 매출 상태만 담고 order_ts로 정렬</p>
 <p class="sql-h">SQL — 튜닝 전 쿼리</p>
 <pre class="ddl">SELECT sum(oi.line_total) AS revenue                     -- 총매출 = 상세금액 전부 합산
@@ -74,7 +74,7 @@ CREATE INDEX idx_orders_rev_ts ON orders(order_ts)       -- order_ts를 정렬�
 <figure class="fig"><img src="captures/q01_before.png" style="max-width:100%"><figcaption>▲ 튜닝 전 — EXPLAIN (ANALYZE, BUFFERS) baseline 실행계획</figcaption></figure>
 <figure class="fig"><img src="captures/q01_after.png" style="max-width:100%"><figcaption>▲ 튜닝 후 — 인덱스/재작성 적용 후 실행계획</figcaption></figure>
 <figure class="fig"><img src="captures/q01_result.png" style="max-width:70%"><figcaption>▲ 실행 결과 (튜닝 전후 동일 — 정확성 보존)</figcaption></figure>
-<p class="improve"><b>개선</b> — orders 접근이 <b>Seq Scan(6,770행 전수) → Bitmap Index Scan (idx_orders_rev_ts, 1,433행)</b>. 필터 테이블을 인덱스로 직접 접근. 총 실행시간은 order_items 공유 스캔이 지배하여 유사하나, 데이터가 커질수록 인덱스 이득이 확대.</p>
+<p class="improve"><b>개선</b> — orders 접근이 <b>Seq Scan(6,770행 전수) → Bitmap Index Scan (idx_orders_rev_ts, 1,431행)</b>. 필터 테이블을 인덱스로 직접 접근. 총 실행시간은 order_items 공유 스캔이 지배하여 유사하나, 데이터가 커질수록 인덱스 이득이 확대.</p>
 <p class="rez"><b>결과</b> — revenue = 1,395,893.20 (튜닝 전후 동일)</p>
 <p class="insight"><b>비즈니스 인사이트</b> — 지난 한 달 실결제 매출 약 <b>139만</b> — 취소·환불·생성을 제외한 '실제 확정 매출'만 집계하여 재무 마감·실적 지표로 바로 활용 가능.</p>
 </section>
@@ -109,7 +109,7 @@ GROUP BY 1 ORDER BY 1;                                   -- 월별 재집계(Has
 <figure class="fig"><img src="captures/q02_result.png" style="max-width:70%"><figcaption>▲ 실행 결과 (튜닝 전후 동일 — 정확성 보존)</figcaption></figure>
 <p class="improve"><b>개선</b> — <b>GroupAggregate + Sort(14,250행 정렬, 941kB) → 2단 HashAggregate</b>. count(DISTINCT)가 유발하던 대형 정렬 노드가 계획에서 사라짐.</p>
 <p class="rez"><b>결과</b> — 4~7월 월매출 108만~140만, AOV 880~977 (전후 동일)</p>
-<p class="insight"><b>비즈니스 인사이트</b> — 월 매출은 6월(약 <b>140만</b>)에 정점, <b>AOV가 847→977로 우상향</b> — 객단가가 꾸준히 개선되는 추세(3·8월은 데이터 경계라 건수 적음).</p>
+<p class="insight"><b>비즈니스 인사이트</b> — 월 매출은 6월(약 <b>140만</b>)에 정점, <b>AOV가 880→977로 완만한 우상향</b> — 객단가 개선 추세(3·8월은 데이터 경계라 건수 적음).</p>
 </section>
 
 <section class="q pb">
@@ -248,7 +248,7 @@ CREATE INDEX idx_orders_cust_rev_ts ON orders(customer_id, order_ts)  -- 프로�
 FROM   inventory i
 JOIN   products p ON p.product_id = i.product_id         -- 상품명 조인
 WHERE  i.qty_on_hand &lt; i.reorder_point                   -- 품절 위험(현재고 &lt; 재주문점)
-ORDER BY shortage DESC;                                  -- 부족량 큰 순</pre>
+ORDER BY shortage DESC LIMIT 10;                         -- 부족량 큰 순(상위 10개 표시, 전체 위험 61건)</pre>
 <p class="sql-h">SQL — 튜닝 후 (인덱스 DDL)</p>
 <pre class="ddl">-- 두 컬럼 비교 조건을 그대로 담은 부분 인덱스, 쿼리는 동일
 CREATE INDEX idx_inventory_low_stock ON inventory(product_id)  -- 위험 상품만 인덱싱
@@ -258,7 +258,7 @@ CREATE INDEX idx_inventory_low_stock ON inventory(product_id)  -- 위험 상품�
 <figure class="fig"><img src="captures/q07_before.png" style="max-width:100%"><figcaption>▲ 튜닝 전 — EXPLAIN (ANALYZE, BUFFERS) baseline 실행계획</figcaption></figure>
 <figure class="fig"><img src="captures/q07_after.png" style="max-width:100%"><figcaption>▲ 튜닝 후 — 인덱스/재작성 적용 후 실행계획</figcaption></figure>
 <figure class="fig"><img src="captures/q07_result.png" style="max-width:70%"><figcaption>▲ 실행 결과 (튜닝 전후 동일 — 정확성 보존)</figcaption></figure>
-<p class="improve"><b>개선</b> — <b>Seq Scan(600행 전수) → Bitmap Index Scan (idx_inventory_low_stock, 61행)</b>. 단, 600행 소형이라 절대시간은 Seq Scan이 최저(옵티마이저 정당) — 접근 행수↓는 재고가 커질수록 이득.</p>
+<p class="improve"><b>개선</b> — <b>Seq Scan(600행 전수) → Bitmap Index Scan (idx_inventory_low_stock, 61행)</b>. 단, 600행 소형이라 두 방식의 절대시간 차이는 측정 노이즈 수준(sub-ms)이며, 옵티마이저는 비용 추정이 더 낮은 Seq Scan을 선택 — 접근 행수↓ 이득은 재고가 커질수록 뚜렷해진다.</p>
 <p class="rez"><b>결과</b> — 품절 위험 61건, 상위는 재고 0 / reorder_point 30 (shortage 30)</p>
 <p class="insight"><b>비즈니스 인사이트</b> — <b>품절 위험 61건, 그중 재고 0이 5건</b> → 즉시 발주 대상. 부족량(shortage) 내림차순으로 발주 우선순위를 바로 산출.</p>
 </section>
@@ -326,7 +326,7 @@ GROUP BY used_coupon;</pre>
 <section class="q pb">
 <h2>Q10. 상위 1% 고객의 최근 60일 매출 <span class="badge" style="background:#059669">인덱스 추가</span></h2>
 <p class="req"><b>요구사항</b> — 최근 60일 매출 상위 1%(99퍼센타일↑) 고객. 선택 컬럼: customer_id, rev.</p>
-<p class="analysis"><b>병목</b> — 최근 60일 매출을 고객별 집계. orders를 (상태 AND 60일) 필터로 <b>Seq Scan</b>(3,892행 제거).</p>
+<p class="analysis"><b>병목</b> — 최근 60일 매출을 고객별 집계. orders를 (상태 AND 60일) 필터로 <b>Seq Scan</b>(3,894행 제거).</p>
 <p class="tune-h">튜닝: 부분 인덱스(idx_orders_rev_ts) 활용 — 60일=약 42%로 Q3보다 선택적</p>
 <p class="sql-h">SQL — 튜닝 전 쿼리</p>
 <pre class="ddl">WITH cust_rev AS (                                       -- 최근 60일 고객별 매출
@@ -379,7 +379,7 @@ GROUP BY channel ORDER BY revenue DESC;
 <figure class="fig"><img src="captures/q11_before.png" style="max-width:100%"><figcaption>▲ 튜닝 전 — EXPLAIN (ANALYZE, BUFFERS) baseline 실행계획</figcaption></figure>
 <figure class="fig"><img src="captures/q11_after.png" style="max-width:100%"><figcaption>▲ 튜닝 후 — 인덱스/재작성 적용 후 실행계획</figcaption></figure>
 <figure class="fig"><img src="captures/q11_result.png" style="max-width:70%"><figcaption>▲ 실행 결과 (튜닝 전후 동일 — 정확성 보존)</figcaption></figure>
-<p class="improve"><b>개선</b> — count(DISTINCT)가 유발한 <b>이중 Sort(14,250행 + 외부 정렬) → HashAggregate</b>. 캡처 정상상태에서 실행시간도 절반 수준으로 감소(30.5ms → 15.4ms).</p>
+<p class="improve"><b>개선</b> — count(DISTINCT)가 유발한 <b>이중 Sort(14,250행 + 외부 정렬) → HashAggregate</b>. 캡처 실행시간도 절반 수준으로 감소(30.5ms → 15.4ms).</p>
 <p class="rez"><b>결과</b> — mobile 240만/2,633/913 · web 125만/1,310/954 · marketplace 117만/1,273/916 (전후 동일)</p>
 <p class="insight"><b>비즈니스 인사이트</b> — <b>mobile이 매출 최다(240만)</b>이나 채널별 AOV는 web(954)>marketplace(916)>mobile(913)로 근소. 유입이 모바일에 몰리므로 모바일 UX·전환율 개선의 레버리지가 가장 큼.</p>
 </section>
@@ -392,10 +392,10 @@ GROUP BY channel ORDER BY revenue DESC;
 <table class="cmp">
 <tr><th>전략</th><th>실행계획 핵심</th><th>실행시간</th><th>유리한 상황</th></tr>
 <tr><td><b>Nested Loop</b></td><td>외부 각 행마다 내부를 <b>Index Only Scan</b>으로 프로브 (loops=1,836, Heap Fetches 0)</td><td class="t">약 7.6ms</td><td>외부가 작고 내부에 인덱스가 있을 때. 외부가 커지면 프로브 폭증에 불리.</td></tr>
-<tr><td><b>Hash Join</b></td><td>orders로 해시 빌드 + order_items 전량 Seq Scan 후 매칭 <span class="opt">(옵티마이저 기본 선택)</span></td><td class="t">약 5.8ms</td><td>인덱스 없거나 대량 등가 조인에 안정적.</td></tr>
-<tr><td><b>Merge Join</b></td><td>order_items는 인덱스 정렬 스캔, orders는 Sort 후 <b>병합</b></td><td class="t">약 5.7ms</td><td>양쪽이 이미 조인 키로 정렬되어 있을 때 매우 효율.</td></tr>
+<tr><td><b>Hash Join</b></td><td>orders로 해시 빌드 + order_items 전량 Seq Scan 후 매칭 <span class="opt">(옵티마이저 기본 선택)</span></td><td class="t">약 11.5ms</td><td>인덱스 없거나 대량 등가 조인에 안정적.</td></tr>
+<tr><td><b>Merge Join</b></td><td>order_items는 인덱스 정렬 스캔, orders는 Sort 후 <b>병합</b></td><td class="t">약 7.8ms</td><td>양쪽이 이미 조인 키로 정렬되어 있을 때 매우 효율.</td></tr>
 </table>
-<p class="cap" style="margin-top:-2px">※ 실행시간은 강제 실행 단일 측정값으로 계측 오버헤드·편차가 있어 서로 근접(이 규모에선 알고리즘 선택이 시간에 큰 차이를 만들지 않으며, 핵심은 각 전략의 <b>계획 구조와 적용 상황</b>). 자동 선택 데모(아래 [기본])는 별도 실행이라 시간이 다를 수 있음.</p>
+<p class="cap" style="margin-top:-2px">※ 위 실행시간은 각 캡처(강제 실행)의 EXPLAIN Execution Time이다. 단일 측정이라 편차가 커 <b>알고리즘 우열의 근거가 못 된다</b> — 이 회차에선 강제 Hash가 11.5ms로 가장 높게 나왔지만 이는 계측 노이즈이며, 옵티마이저는 비용 추정상 <b>Hash Join</b>을 기본 선택한다(자동 선택 캡처). 핵심은 각 전략의 <b>계획 구조와 적용 상황</b>이다.</p>
 <figure class="fig"><img src="captures/join0_auto.png" style="max-width:100%"><figcaption>▲ [기본] 옵티마이저 자동 선택 → Hash Join 채택 (자동 선택 데모)</figcaption></figure>
 <figure class="fig"><img src="captures/join1_nlj.png" style="max-width:100%"><figcaption>▲ [1] Nested Loop 강제 — Index Only Scan 프로브(loops=1,836)</figcaption></figure>
 <figure class="fig"><img src="captures/join2_hash.png" style="max-width:100%"><figcaption>▲ [2] Hash Join 강제 — order_items 전량 스캔 + 해시</figcaption></figure>
@@ -415,15 +415,15 @@ GROUP BY 1;
 CREATE UNIQUE INDEX ux_mv_daily_gmv_day ON mv_daily_gmv(day);  -- CONCURRENTLY 갱신 대비</pre>
 <table class="cmp">
 <tr><th>구분</th><th>실행계획</th><th>실행시간</th></tr>
-<tr><td>MV 미사용 (JOIN+SUM 직접 집계)</td><td>Seq Scan×2 + Hash Join + HashAggregate (14,250행 집계)</td><td class="t">약 <b>8.5ms</b></td></tr>
-<tr><td>MV 사용 (사전 집계 124행 조회)</td><td>Index Scan Backward (ux_mv_daily_gmv_day)</td><td class="t">약 <b>0.04ms</b></td></tr>
+<tr><td>MV 미사용 (JOIN+SUM 직접 집계)</td><td>Seq Scan×2 + Hash Join + HashAggregate (14,250행 집계)</td><td class="t">약 <b>19ms</b></td></tr>
+<tr><td>MV 사용 (사전 집계 124행 조회)</td><td>Index Scan Backward (ux_mv_daily_gmv_day)</td><td class="t">약 <b>0.02ms</b></td></tr>
 </table>
-<p class="improve"><b>개선</b> — CLI 정상상태 반복 측정 기준 약 <b>200배</b> 단축(8.5ms→0.04ms). 세 제출물 중 <b>유일하게 대규모의 실질 시간 이득</b>으로, 집계 자체를 미리 계산해 두므로 order_items 전량 스캔·집계를 통째로 건너뛴다. 리포트성(반복) 질의에 Materialized View가 효과적.
+<p class="improve"><b>개선</b> — 캡처 EXPLAIN 기준 약 <b>860배</b> 단축(19ms→0.02ms). 세 제출물 중 <b>유일하게 대규모의 실질 시간 이득</b>으로, 집계 자체를 미리 계산해 두므로 order_items 전량 스캔·집계를 통째로 건너뛴다. 리포트성(반복) 질의에 Materialized View가 효과적.
 비용: 저장공간 + 갱신(REFRESH) 필요. <b>갱신 전략</b>: 리포트가 오후 3시 기준이면 매일 15:00
 스케줄러(cron/pg_cron)로 <code>REFRESH MATERIALIZED VIEW</code>; 무중단이 필요하면 UNIQUE 인덱스 +
 <code>REFRESH ... CONCURRENTLY</code>.</p>
-<figure class="fig"><img src="captures/mv1_without.png" style="max-width:100%"><figcaption>▲ [MV 미사용] 일자별 GMV 직접 집계 — JOIN+SUM, 약 7.9ms</figcaption></figure>
-<figure class="fig"><img src="captures/mv2_with.png" style="max-width:100%"><figcaption>▲ [MV 사용] REFRESH 후 같은 리포트를 MV에서 조회 — Index Scan, 약 0.02ms</figcaption></figure>
+<figure class="fig"><img src="captures/mv1_without.png" style="max-width:100%"><figcaption>▲ [MV 미사용] 일자별 GMV 직접 집계 — JOIN+SUM (Hash Join + HashAggregate), Execution 약 19ms</figcaption></figure>
+<figure class="fig"><img src="captures/mv2_with.png" style="max-width:100%"><figcaption>▲ [MV 사용] REFRESH 후 같은 리포트를 MV에서 조회 — Index Scan Backward, Execution 약 0.02ms</figcaption></figure>
 <figure class="fig"><img src="captures/mv3_result.png" style="max-width:70%"><figcaption>▲ MV 결과 미리보기 (일자별 GMV) 및 행 수(124일)</figcaption></figure>
 </section>
 
@@ -431,35 +431,34 @@ CREATE UNIQUE INDEX ux_mv_daily_gmv_day ON mv_daily_gmv(day);  -- CONCURRENTLY �
 <section class="pb">
 <h1 class="dh">종합 요약</h1>
 <table class="cmp">
-<tr><th>#</th><th>튜닝 기법</th><th>계획 변화 (전 → 후) — 핵심 근거</th><th>정상상태 대표시간(CLI)</th></tr>
-<tr><td>Q1</td><td>부분 인덱스</td><td>Seq Scan → Bitmap Index Scan (orders 접근 인덱스화)</td><td class="t">~4.5 → ~3.8ms</td></tr>
-<tr><td>Q2</td><td>쿼리 재작성</td><td>GroupAggregate+Sort(14,250행) → HashAggregate</td><td class="t">~10 → ~7ms</td></tr>
-<tr><td>Q3</td><td>계획 분석</td><td>Seq Scan 유지 (90일 저선택도, 옵티마이저 판단 정당)</td><td class="t">~7.7 (동일)</td></tr>
-<tr><td>Q4</td><td>계획 분석</td><td>전량 집계·RANK Sort 불가피 → 전처리(MV)가 정답</td><td class="t">계산 바운드</td></tr>
-<tr><td>Q5</td><td>쿼리 재작성</td><td>GroupAggregate+Sort(14,250행) → HashAggregate</td><td class="t">~9 → ~8ms</td></tr>
-<tr><td>Q6</td><td>복합 부분 인덱스</td><td>Index Scan(heap 재확인, buf 5,539) → Index Only Scan</td><td class="t">~6ms (버퍼↓)</td></tr>
-<tr><td>Q7</td><td>부분 인덱스</td><td>Seq Scan(600) → Bitmap Index Scan(61) — 접근행수↓</td><td class="t">~0.2 → ~0.29ms*</td></tr>
-<tr><td>Q8</td><td>커버링 인덱스</td><td>Seq Scan → Index Only Scan (Heap Fetches 0)</td><td class="t">~1.4 → ~1.2ms</td></tr>
-<tr><td>Q9</td><td>쿼리 재작성</td><td>GroupAggregate+Sort(5,216행) → HashAggregate</td><td class="t">~7.1 → ~6.3ms</td></tr>
-<tr><td>Q10</td><td>부분 인덱스</td><td>Seq Scan → Bitmap Index Scan (60일≈42%)</td><td class="t">~6ms</td></tr>
-<tr><td>Q11</td><td>쿼리 재작성+UDF</td><td>이중 Sort(14,250행+외부) → HashAggregate</td><td class="t">~10.5 → ~6ms</td></tr>
-<tr><td>조인</td><td>NLJ/Hash/Merge</td><td>전략별 실행계획·특성 비교</td><td class="t">상황별 최적 전략</td></tr>
-<tr><td>MV</td><td>사전 집계</td><td>JOIN+SUM(전량 집계) → Index Scan (MV 124행)</td><td><b>8.5 → 0.04ms (~200배)</b></td></tr>
+<tr><th>#</th><th>튜닝 기법</th><th>계획 변화 (전 → 후) — 핵심 근거</th><th>EXPLAIN 실행시간 (캡처, 전→후)</th></tr>
+<tr><td>Q1</td><td>부분 인덱스</td><td>Seq Scan → Bitmap Index Scan (orders 접근 인덱스화)</td><td class="t">8.6 → 7.5ms</td></tr>
+<tr><td>Q2</td><td>쿼리 재작성</td><td>GroupAggregate+Sort(14,250행) → HashAggregate</td><td class="t">21.1 → 19.8ms</td></tr>
+<tr><td>Q3</td><td>계획 분석</td><td>Seq Scan 유지 (90일 저선택도, 옵티마이저 판단 정당)</td><td class="t">12.7 → 13.9ms (계획 동일)</td></tr>
+<tr><td>Q4</td><td>계획 분석</td><td>전량 집계·RANK Sort 불가피 → 전처리(MV)가 정답</td><td class="t">14.2 → 18.5ms (계획 동일)</td></tr>
+<tr><td>Q5</td><td>쿼리 재작성</td><td>GroupAggregate+Sort(14,250행) → HashAggregate</td><td class="t">14.2 → 18.3ms *</td></tr>
+<tr><td>Q6</td><td>복합 부분 인덱스</td><td>Index Scan(heap 재확인, buf 5,539) → Index Only Scan</td><td class="t">6.0 → 10.0ms * (버퍼 5,539→4,460)</td></tr>
+<tr><td>Q7</td><td>부분 인덱스</td><td>Seq Scan(600) → Bitmap Index Scan(61) — 접근행수↓</td><td class="t">0.21 → 0.17ms *</td></tr>
+<tr><td>Q8</td><td>커버링 인덱스</td><td>Seq Scan → Index Only Scan (Heap Fetches 0)</td><td class="t">2.3 → 1.5ms</td></tr>
+<tr><td>Q9</td><td>쿼리 재작성</td><td>GroupAggregate+Sort(5,216행) → HashAggregate</td><td class="t">21.8 → 18.0ms</td></tr>
+<tr><td>Q10</td><td>부분 인덱스</td><td>Seq Scan → Bitmap Index Scan (60일≈42%)</td><td class="t">10.7 → 9.3ms</td></tr>
+<tr><td>Q11</td><td>쿼리 재작성+UDF</td><td>이중 Sort(14,250행+외부) → HashAggregate</td><td class="t">30.5 → 15.4ms</td></tr>
+<tr><td>조인</td><td>NLJ/Hash/Merge</td><td>전략별 실행계획·특성 비교</td><td class="t">NLJ 7.6·Hash 11.5·Merge 7.8ms</td></tr>
+<tr><td>MV</td><td>사전 집계</td><td>JOIN+SUM(전량 집계) → Index Scan (MV 124행)</td><td><b>19 → 0.02ms (~860배)</b></td></tr>
 </table>
 <p class="note">※ <b>측정 유의점</b> — 데이터 규모(orders 6,770·order_items 18,393)가 작아 절대 실행시간은 수 ms대이고,
-EXPLAIN ANALYZE의 행별 계측 오버헤드 때문에 <b>캡처 이미지의 시간은 실제보다 부풀려지고 실행마다 편차가 크다</b>
-(예: 캡처 20ms대여도 CLI 반복 측정은 7ms대). 따라서 튜닝의 핵심 근거는 <b>실행계획 노드(스캔·조인·정렬)와 접근 행수·버퍼의 변화</b>이며,
-위 '정상상태 대표시간'은 CLI에서 6회 반복 측정한 대표값이다. 이 효과는 데이터가 커질수록 실질 이득으로 확대된다.
-<b>인덱스가 항상 이득은 아니며</b>(Q3·Q4는 Seq Scan 유지가 최적, Q7*는 소형 테이블에서 인덱스가 오히려 근소하게 느림),
-비용기반 옵티마이저의 선택을 함께 분석하였다. 실질적으로 큰 시간 이득은 <b>Materialized View(약 200배)</b>에서 나온다.</p>
+EXPLAIN ANALYZE의 행별 계측 오버헤드로 <b>단일 실행 시간은 실행마다 편차가 크다</b>. 위 표의 시간은 각 문항 캡처(EXPLAIN ANALYZE)의 <b>Execution Time 전→후</b> 값이다.
+이 편차 때문에 <b>*표시 문항은 튜닝 후 단일 측정을 곧이곧대로 읽으면 안 된다</b> — Q5·Q6은 후가 오히려 근소히 높게 나왔지만(노이즈) 계획·버퍼는 개선(Q5 대형 Sort 제거, Q6 버퍼 5,539→4,460·Heap Fetches 0), Q7은 강제 인덱스(후)가 근소히 빨랐으나 옵티마이저는 비용상 Seq Scan을 유지(접근 행수 600→61). 따라서 튜닝의 핵심 근거는 시간이 아니라 <b>실행계획 노드(스캔·조인·정렬)와 접근 행수·버퍼의 변화</b>이며, 이 효과는 데이터가 커질수록 실질 이득으로 확대된다.
+<b>인덱스가 항상 이득은 아니며</b>(Q3·Q4는 Seq Scan 유지가 최적, Q7은 소형 테이블이라 인덱스 이득이 측정 노이즈 수준 — 옵티마이저는 비용상 Seq Scan 유지),
+비용기반 옵티마이저의 선택을 함께 분석하였다. 실질적으로 큰 시간 이득은 <b>Materialized View(약 860배)</b>에서 나온다.</p>
 
 <h2 style="margin-top:14px">스캔·인덱스·조인 전략 정리</h2>
 <ul>
-  <li><b>스캔 방식</b> — <b>Seq Scan</b>(소형·저선택도 필터: Q3·Q4·Q7·Q8에서 최적), <b>Bitmap Index Scan</b>(부분 인덱스로 선택적 구간만: Q1·Q10), <b>Index Only Scan</b>(커버링/복합 인덱스로 heap 접근 제거, Heap Fetches 0: Q6·Q8)를 상황별로 확인.</li>
+  <li><b>스캔 방식</b> — <b>Seq Scan</b>(소형·저선택도 필터: Q3·Q4·Q7·Q8에서 옵티마이저 채택), <b>Bitmap Index Scan</b>(부분 인덱스로 선택적 구간만: Q1·Q10), <b>Index Only Scan</b>(커버링/복합 인덱스로 heap 접근 제거, Heap Fetches 0: Q6·Q8)를 상황별로 확인.</li>
   <li><b>인덱스 전략</b> — <b>부분 인덱스</b>(매출 상태·품절 조건만 색인: Q1·Q7·Q10), <b>복합 부분 인덱스</b>((customer_id, order_ts)+status: Q6), <b>커버링 인덱스</b>(product_id INCLUDE rating: Q8). 인덱스 크기·유지비를 낮추면서 필요한 행만 겨냥.</li>
   <li><b>쿼리 재작성</b> — <code>count(DISTINCT)</code>가 유발하는 대형 Sort를 <b>주문 단위 선집계 → HashAggregate</b>로 제거(Q2·Q5·Q9·Q11). 인덱스 없이 계획 자체를 개선.</li>
   <li><b>조인 전략</b> — 이 데이터에선 대량 등가 조인에 <b>Hash Join</b>이 기본 선택. 외부가 작고 내부에 인덱스가 있으면 <b>Nested Loop</b>(Index Only Scan 프로브), 정렬된 입력이면 <b>Merge Join</b>이 유리(제출물 2 참조).</li>
-  <li><b>사전 집계</b> — 반복 조회되는 리포트성 질의는 <b>Materialized View</b>로 집계를 미리 계산해 전량 스캔·집계를 통째로 회피(제출물 3, 약 200배).</li>
+  <li><b>사전 집계</b> — 반복 조회되는 리포트성 질의는 <b>Materialized View</b>로 집계를 미리 계산해 전량 스캔·집계를 통째로 회피(제출물 3, 약 860배).</li>
 </ul>
 </section>
 

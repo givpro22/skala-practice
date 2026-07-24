@@ -8,7 +8,7 @@ AI 서비스를 위한 SW 기초 Full-stack Engineering — 스마트 데이터 
 ## 제출물
 1. **Q1~Q11 튜닝 전/후** — 각 문항별 baseline 실행계획(EXPLAIN ANALYZE) → 병목 분석 → 튜닝(인덱스/재작성) → 튜닝 후 실행계획·결과 비교
 2. **3가지 조인 비교** — Nested Loop / Hash / Merge Join 강제 실행계획 및 특성 비교
-3. **Materialized View** — mv_daily_gmv 생성·갱신 스크립트 및 리포트 가속(약 700배) 검증
+3. **Materialized View** — mv_daily_gmv 생성·갱신 스크립트 및 리포트 가속(약 860배) 검증
 
 ## 폴더 구성
 ```
@@ -50,4 +50,4 @@ PGOPTIONS='-c search_path=ecom,public' psql -d skala_db -f sql/quiz/q01.sql
 | 커버링 인덱스 | Q8 | Seq Scan → Index Only Scan (Heap Fetches 0) |
 | 쿼리 재작성 | Q2·Q5·Q9·Q11 | count(DISTINCT) Sort 제거 → HashAggregate |
 | 옵티마이저 분석 | Q3·Q4 | 저선택도/전량집계 → Seq Scan 유지가 최적(크로스오버) |
-| Materialized View | 일자별 GMV | JOIN+SUM(7.9ms) → Index Scan(0.02ms) |
+| Materialized View | 일자별 GMV | JOIN+SUM(19ms) → Index Scan(0.02ms, 약 860배) |

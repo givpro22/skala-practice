@@ -19,7 +19,7 @@ WHERE o.order_status IN ('paid','shipped','delivered')  -- 매출로 인정되�
 -- [튜닝] 매출 상태만 담고 order_ts로 정렬한 '부분 인덱스' 생성
 --   CREATE INDEX idx_orders_rev_ts ON orders(order_ts)
 --     WHERE order_status IN ('paid','shipped','delivered');
--- [튜닝 후] Seq Scan → Bitmap Index Scan(idx_orders_rev_ts)로 1개월치(1,433행)만 접근
+-- [튜닝 후] Seq Scan → Bitmap Index Scan(idx_orders_rev_ts)로 1개월치(1,431행)만 접근
 --   ※ ms 단위 계측 오버헤드로 절대시간 편차 큼 → 핵심 근거는 계획/버퍼 변화.
 --     총시간은 order_items 공유 스캔이 지배하여 유사(정상상태 CLI 약 4.5ms→3.8ms),
 --     이득은 필터 테이블 접근이 인덱스화된 점 + 대용량 확장성.
