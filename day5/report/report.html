@@ -1,0 +1,479 @@
+<meta charset="utf-8">
+<title>[Day5 종합실습-4] ecommerce 매출 분석 및 성능 튜닝</title>
+<style>
+@page { size: A4; margin: 11mm 12mm; }
+* { box-sizing: border-box; }
+body { font-family:'Apple SD Gothic Neo','Malgun Gothic',-apple-system,sans-serif; color:#1f2937; font-size:10pt; line-height:1.55; margin:0; }
+h1.title { font-size:19pt; margin:0 0 4px; color:#0f172a; }
+.meta { color:#6b7280; font-size:9pt; border-bottom:1px solid #e5e7eb; padding-bottom:9px; margin-bottom:14px; }
+h1.dh { font-size:15pt; color:#0369a1; border-left:5px solid #0369a1; padding-left:9px; margin:0 0 10px; }
+h2 { font-size:12.5pt; color:#1d4ed8; margin:0 0 6px; }
+.badge { color:#fff; font-size:8pt; padding:1px 7px; border-radius:9px; margin-left:4px; vertical-align:middle; font-weight:600; }
+ul { margin:6px 0; padding-left:18px; } li { margin:2px 0; }
+.req { margin:3px 0; }
+.analysis { margin:3px 0; color:#334155; }
+.tune-h { margin:6px 0 2px; font-weight:700; color:#0f766e; font-size:10pt; }
+.sql-h { margin:6px 0 1px; font-weight:700; color:#334155; font-size:9pt; break-after:avoid; }
+pre.ddl { background:#0f172a; color:#e2e8f0; border-radius:6px; padding:8px 11px; margin:4px 0 8px;
+          font-family:'SF Mono',Menlo,monospace; font-size:8pt; line-height:1.45; white-space:pre; overflow-x:hidden; break-inside:avoid; }
+.fig { margin:6px 0 4px; break-inside:avoid; text-align:center; }
+.fig img { width:100%; border:1px solid #cbd5e1; border-radius:6px; box-shadow:0 1px 3px rgba(0,0,0,.25); }
+.fig figcaption { color:#64748b; font-size:8.4pt; margin-top:2px; text-align:left; }
+.improve { margin:7px 0 2px; background:#ecfdf5; border-left:3px solid #059669; padding:5px 9px; }
+.rez { margin:2px 0 4px; background:#eff6ff; border-left:3px solid #2563eb; padding:5px 9px; }
+.insight { margin:2px 0 4px; background:#faf5ff; border-left:3px solid #7c3aed; padding:5px 9px; }
+.note { color:#475569; font-size:9pt; background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; padding:8px 11px; }
+table.cmp { width:100%; border-collapse:collapse; margin:8px 0; font-size:9pt; }
+table.cmp th, table.cmp td { border:1px solid #cbd5e1; padding:5px 8px; text-align:left; vertical-align:top; }
+table.cmp th { background:#f1f5f9; color:#0f172a; white-space:nowrap; }
+table.cmp td.t { white-space:nowrap; }
+.opt { color:#059669; font-weight:600; }
+code { background:#f1f5f9; padding:0 3px; border-radius:3px; font-family:'SF Mono',Menlo,monospace; font-size:8.8pt; }
+.pb { page-break-before:always; }
+section.q { }
+</style>
+<h1 class="title">[Day 5 종합실습-4] ecommerce 매출 분석 및 성능 튜닝</h1>
+<p class="meta">AI 서비스를 위한 SW 기초 Full-stack Engineering — 스마트 데이터 이해 및 활용 &nbsp;|&nbsp; 종합실습-4 &nbsp;|&nbsp; 광주캠퍼스 4반 박영서 &nbsp;|&nbsp; 2026-07-24</p>
+
+<h2>실습 결과 요약</h2>
+<ul>
+  <li>실행환경: <b>PostgreSQL 17.10</b> — DB <b>skala_db</b> · 스키마 <b>ecom</b> · EXPLAIN (ANALYZE, BUFFERS)로 계획·수행시간 검증</li>
+  <li>데이터: customers 3,000 · products 600 · <b>orders 6,770</b> · <b>order_items 18,393</b> · reviews 2,064 · inventory 600</li>
+  <li><b>제출물 1</b>: Q1~Q11 각 문항 <b>튜닝 전/후 쿼리·실행계획·결과</b> (병목 → 튜닝 기법 → 개선 검증)</li>
+  <li><b>제출물 2</b>: 3가지 조인 알고리즘(Nested Loop / Hash / Merge) 실행계획·특성 비교</li>
+  <li><b>제출물 3</b>: Materialized View(mv_daily_gmv) 생성·갱신·리포트 가속(약 200배) 및 갱신 전략</li>
+  <li>튜닝 기법: <span style="color:#059669">부분·복합·커버링 인덱스</span>, <span style="color:#7c3aed">쿼리 재작성</span>(count(DISTINCT) 제거·불필요 Sort 제거), <span style="color:#b45309">비용기반 옵티마이저 크로스오버 분석</span></li>
+  <li>채점 기준 준수 — 요구사항 1:1 반영 · 필요 컬럼만 선택(<code>SELECT *</code> 미사용) · DB 프로그래밍 <b>주석 처리</b>(모든 SQL 파일에 병목·튜닝 근거 주석)</li>
+</ul>
+
+<p class="note" style="margin-top:6px"><b>측정 방법 및 유의점</b> — 본 데이터는 소규모(orders 6,770·order_items 18,393)라 절대 실행시간이 수 ms대이며,
+EXPLAIN ANALYZE의 행별 계측 오버헤드로 <b>캡처 이미지의 실행시간은 실제보다 부풀려지고 실행마다 편차가 크다</b>.
+따라서 각 문항의 튜닝 효과는 <b>실행계획 노드(스캔·조인·정렬)·버퍼·접근 행수의 변화</b>를 핵심 근거로 판단하였고(EXPLAIN ANALYZE, BUFFERS),
+실행시간은 CLI에서 반복 측정한 <b>정상상태 대표값</b>(종합 요약 표)으로 별도 표기한다. 이 이득은 데이터가 커질수록 확대된다.</p>
+
+<h2>0. 실습 환경 확인</h2>
+<figure class="fig"><img src="captures/env.png" style="max-width:100%"><figcaption>▲ skala_db / ecom 스키마 접속(\conninfo), 테이블 목록·행 수 확인</figcaption></figure>
+
+
+<h1 class="dh">제출물 1 · Q1~Q11 튜닝 전/후 비교</h1>
+<section class="q">
+<h2>Q1. 지난 한 달간 실제 판매 총액 (paid/shipped/delivered) <span class="badge" style="background:#059669">인덱스 추가</span></h2>
+<p class="req"><b>요구사항</b> — 취소·환불·생성 상태 제외, 최근 1개월(now 기준) 매출 합계. 선택 컬럼: revenue 1개.</p>
+<p class="analysis"><b>병목</b> — orders에 (상태 AND 기간) 필터가 있으나 이를 지원하는 인덱스가 없어 <b>Seq Scan on orders</b>(6,770행 스캔 → 5,337행 필터 제거).</p>
+<p class="tune-h">튜닝: 부분 인덱스 — 매출 상태만 담고 order_ts로 정렬</p>
+<p class="sql-h">SQL — 튜닝 전 쿼리</p>
+<pre class="ddl">SELECT sum(oi.line_total) AS revenue
+FROM   orders o
+JOIN   order_items oi ON oi.order_id = o.order_id
+WHERE  o.order_status IN (&#x27;paid&#x27;,&#x27;shipped&#x27;,&#x27;delivered&#x27;)
+  AND  o.order_ts &gt;= now() - interval &#x27;1 month&#x27;;</pre>
+<p class="sql-h">SQL — 튜닝 후 (인덱스 DDL)</p>
+<pre class="ddl">-- 부분 인덱스만 추가, 쿼리는 튜닝 전과 동일
+CREATE INDEX idx_orders_rev_ts ON orders(order_ts)
+  WHERE order_status IN (&#x27;paid&#x27;,&#x27;shipped&#x27;,&#x27;delivered&#x27;);</pre>
+<figure class="fig"><img src="captures/q01_before.png" style="max-width:100%"><figcaption>▲ 튜닝 전 — EXPLAIN (ANALYZE, BUFFERS) baseline 실행계획</figcaption></figure>
+<figure class="fig"><img src="captures/q01_after.png" style="max-width:100%"><figcaption>▲ 튜닝 후 — 인덱스/재작성 적용 후 실행계획</figcaption></figure>
+<figure class="fig"><img src="captures/q01_result.png" style="max-width:70%"><figcaption>▲ 실행 결과 (튜닝 전후 동일 — 정확성 보존)</figcaption></figure>
+<p class="improve"><b>개선</b> — orders 접근이 <b>Seq Scan(6,770행 전수) → Bitmap Index Scan (idx_orders_rev_ts, 1,433행)</b>. 필터 테이블을 인덱스로 직접 접근. 총 실행시간은 order_items 공유 스캔이 지배하여 유사하나, 데이터가 커질수록 인덱스 이득이 확대.</p>
+<p class="rez"><b>결과</b> — revenue = 1,395,893.20 (튜닝 전후 동일)</p>
+<p class="insight"><b>비즈니스 인사이트</b> — 지난 한 달 실결제 매출 약 <b>139만</b> — 취소·환불·생성을 제외한 '실제 확정 매출'만 집계하여 재무 마감·실적 지표로 바로 활용 가능.</p>
+</section>
+
+<section class="q pb">
+<h2>Q2. 월별 주문 수 / 매출 / 주문당 평균금액(AOV) <span class="badge" style="background:#7c3aed">쿼리 재작성</span></h2>
+<p class="req"><b>요구사항</b> — 월별 주문 건수·매출 합계·AOV(매출/주문수). 선택 컬럼: mon, orders, revenue, aov.</p>
+<p class="analysis"><b>병목</b> — AOV용 <b>count(DISTINCT order_id)</b>가 GroupAggregate 입력을 (month, order_id)로 정렬 → <b>14,250행 Sort</b>(quicksort 941kB).</p>
+<p class="tune-h">튜닝: 쿼리 재작성 — 주문 단위 선집계 후 월별 재집계 (count(DISTINCT) 제거)</p>
+<p class="sql-h">SQL — 튜닝 전 쿼리</p>
+<pre class="ddl">SELECT date_trunc(&#x27;month&#x27;, o.order_ts) AS mon,
+       count(DISTINCT o.order_id)        AS orders,
+       sum(oi.line_total)                AS revenue,
+       sum(oi.line_total)/count(DISTINCT o.order_id) AS aov
+FROM   orders o
+JOIN   order_items oi ON oi.order_id = o.order_id
+WHERE  o.order_status IN (&#x27;paid&#x27;,&#x27;shipped&#x27;,&#x27;delivered&#x27;)
+GROUP BY 1 ORDER BY 1;</pre>
+<p class="sql-h">SQL — 튜닝 후 (재작성 쿼리)</p>
+<pre class="ddl">-- 주문 단위 선집계 후 월별 재집계 (count(DISTINCT) 제거)
+SELECT date_trunc(&#x27;month&#x27;, order_ts) AS mon, count(*) AS orders,
+       sum(order_rev) AS revenue, round(sum(order_rev)/count(*),2) AS aov
+FROM (
+  SELECT o.order_id, o.order_ts, sum(oi.line_total) AS order_rev
+  FROM   orders o JOIN order_items oi ON oi.order_id = o.order_id
+  WHERE  o.order_status IN (&#x27;paid&#x27;,&#x27;shipped&#x27;,&#x27;delivered&#x27;)
+  GROUP BY o.order_id, o.order_ts
+) t
+GROUP BY 1 ORDER BY 1;</pre>
+<figure class="fig"><img src="captures/q02_before.png" style="max-width:100%"><figcaption>▲ 튜닝 전 — EXPLAIN (ANALYZE, BUFFERS) baseline 실행계획</figcaption></figure>
+<figure class="fig"><img src="captures/q02_after.png" style="max-width:100%"><figcaption>▲ 튜닝 후 — 인덱스/재작성 적용 후 실행계획</figcaption></figure>
+<figure class="fig"><img src="captures/q02_result.png" style="max-width:70%"><figcaption>▲ 실행 결과 (튜닝 전후 동일 — 정확성 보존)</figcaption></figure>
+<p class="improve"><b>개선</b> — <b>GroupAggregate + Sort(14,250행 정렬, 941kB) → 2단 HashAggregate</b>. count(DISTINCT)가 유발하던 대형 정렬 노드가 계획에서 사라짐.</p>
+<p class="rez"><b>결과</b> — 4~7월 월매출 108만~140만, AOV 880~977 (전후 동일)</p>
+<p class="insight"><b>비즈니스 인사이트</b> — 월 매출은 6월(약 <b>140만</b>)에 정점, <b>AOV가 847→977로 우상향</b> — 객단가가 꾸준히 개선되는 추세(3·8월은 데이터 경계라 건수 적음).</p>
+</section>
+
+<section class="q pb">
+<h2>Q3. 최근 90일 카테고리 Top10 (매출 기준) <span class="badge" style="background:#b45309">계획 분석·크로스오버</span></h2>
+<p class="req"><b>요구사항</b> — 최근 90일, 카테고리별 매출 합계 상위 10. 선택 컬럼: category_id, category_name, revenue.</p>
+<p class="analysis"><b>병목</b> — orders를 (상태 AND 90일) 필터로 Seq Scan 후 order_items·products·categories 4중 조인.</p>
+<p class="tune-h">튜닝: 부분 인덱스(idx_orders_rev_ts) 활용 검토 — 단, 90일은 전체의 약 60%로 저선택도</p>
+<p class="sql-h">SQL — 튜닝 전 쿼리</p>
+<pre class="ddl">SELECT c.category_id, c.category_name, sum(oi.line_total) AS revenue
+FROM   orders o
+JOIN   order_items oi ON oi.order_id = o.order_id
+JOIN   products   p  ON p.product_id = oi.product_id
+JOIN   categories c  ON c.category_id = p.category_id
+WHERE  o.order_status IN (&#x27;paid&#x27;,&#x27;shipped&#x27;,&#x27;delivered&#x27;)
+  AND  o.order_ts &gt;= now() - interval &#x27;90 days&#x27;
+GROUP BY c.category_id, c.category_name
+ORDER BY revenue DESC LIMIT 10;</pre>
+<p class="sql-h">튜닝 후 (계획 분석 — 쿼리 동일)</p>
+<pre class="ddl">-- 90일 ≈ 60% 저선택도 → 옵티마이저가 Seq Scan 유지가 최적(강제 시 악화).
+-- 부분 인덱스는 존재하나 이 조건에선 미채택. 쿼리 동일. (통계 최신화: ANALYZE)
+--   검증: SET enable_seqscan=off → Bitmap Index Scan(idx_orders_rev_ts) 동작 확인</pre>
+<figure class="fig"><img src="captures/q03_before.png" style="max-width:100%"><figcaption>▲ 튜닝 전 — EXPLAIN (ANALYZE, BUFFERS) baseline 실행계획</figcaption></figure>
+<figure class="fig"><img src="captures/q03_after.png" style="max-width:100%"><figcaption>▲ 튜닝 후 — 인덱스/재작성 적용 후 실행계획</figcaption></figure>
+<figure class="fig"><img src="captures/q03_result.png" style="max-width:70%"><figcaption>▲ 실행 결과 (튜닝 전후 동일 — 정확성 보존)</figcaption></figure>
+<p class="improve"><b>개선</b> — 이 규모(90일 ≈ 60%)에선 <b>Seq Scan 유지가 최적</b>(옵티마이저 판단 정당). ANALYZE로 categories 추정행 1,070→14 정확화. 강제 인덱스 시 오히려 악화 → 인덱스가 만능이 아님을 실증.</p>
+<p class="rez"><b>결과</b> — Women 132만 > Shoes 88만 > Fitness 21만 … (Top10, 전후 동일)</p>
+<p class="insight"><b>비즈니스 인사이트</b> — <b>Women·Shoes가 매출을 견인</b>(합계 약 220만), 이어 Fitness·Phones·Audio. 상위 2개 카테고리 집중도가 높아 재고·프로모션 우선순위 대상.</p>
+</section>
+
+<section class="q pb">
+<h2>Q4. 제품별 누적 매출 RANK() Top20 <span class="badge" style="background:#b45309">계획 분석·크로스오버</span></h2>
+<p class="req"><b>요구사항</b> — 제품별 매출 합계에 RANK() 부여, 상위 20. 선택 컬럼: product_id, product_name, revenue, rnk.</p>
+<p class="analysis"><b>병목</b> — 필터가 상태뿐이라 order_items 전량(18,393) 집계 불가피. RANK()는 정의상 전체 Sort 필요 → 계산 바운드.</p>
+<p class="tune-h">튜닝: 커버링 인덱스 검토 — 단, 전량 집계형이라 인덱스로는 스캔 축소 불가</p>
+<p class="sql-h">SQL — 튜닝 전 쿼리</p>
+<pre class="ddl">SELECT product_id, product_name, revenue,
+       RANK() OVER (ORDER BY revenue DESC) AS rnk
+FROM (
+  SELECT p.product_id, p.product_name, sum(oi.line_total) AS revenue
+  FROM   order_items oi
+  JOIN   orders   o ON o.order_id  = oi.order_id
+  JOIN   products p ON p.product_id = oi.product_id
+  WHERE  o.order_status IN (&#x27;paid&#x27;,&#x27;shipped&#x27;,&#x27;delivered&#x27;)
+  GROUP BY p.product_id, p.product_name
+) t
+ORDER BY rnk LIMIT 20;</pre>
+<p class="sql-h">튜닝 후 (계획 분석 — 쿼리 동일)</p>
+<pre class="ddl">-- 전량 집계 + RANK() 정렬은 불가피(계산 바운드) → 인덱스로 스캔 축소 불가.
+-- 근본 개선책은 사전 집계(제출물 3의 Materialized View). 쿼리 동일.</pre>
+<figure class="fig"><img src="captures/q04_before.png" style="max-width:100%"><figcaption>▲ 튜닝 전 — EXPLAIN (ANALYZE, BUFFERS) baseline 실행계획</figcaption></figure>
+<figure class="fig"><img src="captures/q04_after.png" style="max-width:100%"><figcaption>▲ 튜닝 후 — 인덱스/재작성 적용 후 실행계획</figcaption></figure>
+<figure class="fig"><img src="captures/q04_result.png" style="max-width:70%"><figcaption>▲ 실행 결과 (튜닝 전후 동일 — 정확성 보존)</figcaption></figure>
+<p class="improve"><b>개선</b> — 필터가 상태뿐이라 order_items 전량 집계가 불가피하고 RANK() 정렬도 필수 → <b>전/후 계획 동일</b>(계산 바운드). 근본 개선책은 사전 집계(제출물 3의 MV).</p>
+<p class="rez"><b>결과</b> — 1위 Product 175(162만), 2위 Product 299(69만) … (전후 동일)</p>
+<p class="insight"><b>비즈니스 인사이트</b> — <b>상위 2개 제품(Product 175·299)이 162만·69만으로 압도적</b>, 3위부터 급락 → 매출이 소수 히트상품에 편중(롱테일). 히트상품 품절 관리가 매출 방어의 핵심.</p>
+</section>
+
+<section class="q pb">
+<h2>Q5. RFM 분석 — 최근성/빈도/금액 <span class="badge" style="background:#7c3aed">쿼리 재작성</span></h2>
+<p class="req"><b>요구사항</b> — 고객별 recency_days, frequency(주문수), monetary(매출). 금액 상위 20. 선택 컬럼 4개.</p>
+<p class="analysis"><b>병목</b> — frequency = <b>count(DISTINCT order_id)</b> → GroupAggregate 입력 (customer_id, order_id) <b>14,250행 Sort</b>.</p>
+<p class="tune-h">튜닝: 쿼리 재작성 — 주문 단위 선집계 후 고객별 재집계 (count(DISTINCT) 제거)</p>
+<p class="sql-h">SQL — 튜닝 전 쿼리</p>
+<pre class="ddl">SELECT o.customer_id,
+       (now()::date - max(o.order_ts)::date) AS recency_days,
+       count(DISTINCT o.order_id)            AS frequency,
+       sum(oi.line_total)                    AS monetary
+FROM   orders o
+JOIN   order_items oi ON oi.order_id = o.order_id
+WHERE  o.order_status IN (&#x27;paid&#x27;,&#x27;shipped&#x27;,&#x27;delivered&#x27;)
+GROUP BY o.customer_id
+ORDER BY monetary DESC LIMIT 20;</pre>
+<p class="sql-h">SQL — 튜닝 후 (재작성 쿼리)</p>
+<pre class="ddl">-- 주문 단위 선집계 후 고객별 재집계 (count(DISTINCT) 제거)
+SELECT t.customer_id,
+       (now()::date - max(t.order_ts)::date) AS recency_days,
+       count(*) AS frequency, sum(t.order_rev) AS monetary
+FROM (
+  SELECT o.order_id, o.customer_id, o.order_ts, sum(oi.line_total) AS order_rev
+  FROM   orders o JOIN order_items oi ON oi.order_id = o.order_id
+  WHERE  o.order_status IN (&#x27;paid&#x27;,&#x27;shipped&#x27;,&#x27;delivered&#x27;)
+  GROUP BY o.order_id, o.customer_id, o.order_ts
+) t
+GROUP BY t.customer_id ORDER BY monetary DESC LIMIT 20;</pre>
+<figure class="fig"><img src="captures/q05_before.png" style="max-width:100%"><figcaption>▲ 튜닝 전 — EXPLAIN (ANALYZE, BUFFERS) baseline 실행계획</figcaption></figure>
+<figure class="fig"><img src="captures/q05_after.png" style="max-width:100%"><figcaption>▲ 튜닝 후 — 인덱스/재작성 적용 후 실행계획</figcaption></figure>
+<figure class="fig"><img src="captures/q05_result.png" style="max-width:70%"><figcaption>▲ 실행 결과 (튜닝 전후 동일 — 정확성 보존)</figcaption></figure>
+<p class="improve"><b>개선</b> — <b>GroupAggregate + Sort(14,250행) → 2단 HashAggregate</b>. count(DISTINCT) 제거로 대형 정렬 노드 제거.</p>
+<p class="rez"><b>결과</b> — 헤비고객 19번(37,420) ~ 17번(20,941), frequency 21 균일 (전후 동일)</p>
+<p class="insight"><b>비즈니스 인사이트</b> — 상위 20 VIP가 <b>frequency 21로 균일하게 높고 monetary 2만~3.7만</b> → 헤비 고객층이 뚜렷. 이들 대상 리텐션·VIP 혜택 설계가 효과적.</p>
+</section>
+
+<section class="q pb">
+<h2>Q6. 첫 구매 후 30일 내 재구매율 <span class="badge" style="background:#059669">인덱스 추가</span></h2>
+<p class="req"><b>요구사항</b> — 고객 첫 결제완료 이후 30일 이내 재주문 비율(%). 선택 컬럼: cohort, repurchased, pct_30d.</p>
+<p class="analysis"><b>병목</b> — LATERAL 프로브가 idx_orders_customer_ts로 Index Scan하나 status 필터를 <b>heap에서 재확인</b>(버퍼 hit 5,539).</p>
+<p class="tune-h">튜닝: 복합 부분 인덱스 — status 조건까지 인덱스에 포함</p>
+<p class="sql-h">SQL — 튜닝 전 쿼리</p>
+<pre class="ddl">WITH firsts AS (
+  SELECT customer_id, min(order_ts) AS first_ts
+  FROM orders WHERE order_status IN (&#x27;paid&#x27;,&#x27;shipped&#x27;,&#x27;delivered&#x27;)
+  GROUP BY customer_id
+)
+SELECT count(*) AS cohort,
+       count(*) FILTER (WHERE re.customer_id IS NOT NULL) AS repurchased,
+       round(100.0*count(*) FILTER (WHERE re.customer_id IS NOT NULL)/count(*),2) AS pct_30d
+FROM   firsts f
+LEFT JOIN LATERAL (
+  SELECT o2.customer_id FROM orders o2
+  WHERE o2.customer_id = f.customer_id
+    AND o2.order_status IN (&#x27;paid&#x27;,&#x27;shipped&#x27;,&#x27;delivered&#x27;)
+    AND o2.order_ts &gt;  f.first_ts
+    AND o2.order_ts &lt;= f.first_ts + interval &#x27;30 days&#x27;
+  LIMIT 1
+) re ON true;</pre>
+<p class="sql-h">SQL — 튜닝 후 (인덱스 DDL)</p>
+<pre class="ddl">-- status 조건까지 담은 복합 부분 인덱스, 쿼리는 동일 (Index Only Scan 유도)
+CREATE INDEX idx_orders_cust_rev_ts ON orders(customer_id, order_ts)
+  WHERE order_status IN (&#x27;paid&#x27;,&#x27;shipped&#x27;,&#x27;delivered&#x27;);</pre>
+<figure class="fig"><img src="captures/q06_before.png" style="max-width:100%"><figcaption>▲ 튜닝 전 — EXPLAIN (ANALYZE, BUFFERS) baseline 실행계획</figcaption></figure>
+<figure class="fig"><img src="captures/q06_after.png" style="max-width:100%"><figcaption>▲ 튜닝 후 — 인덱스/재작성 적용 후 실행계획</figcaption></figure>
+<figure class="fig"><img src="captures/q06_result.png" style="max-width:70%"><figcaption>▲ 실행 결과 (튜닝 전후 동일 — 정확성 보존)</figcaption></figure>
+<p class="improve"><b>개선</b> — 재구매 탐색 프로브가 <b>Index Scan(heap 재확인, Buffers hit 5,539) → Index Only Scan (idx_orders_cust_rev_ts)</b>로 전환 → heap 접근 제거, 버퍼 대폭 감소.</p>
+<p class="rez"><b>결과</b> — cohort 2,227 / repurchased 1,085 / <b>pct_30d 48.72%</b> (전후 동일)</p>
+<p class="insight"><b>비즈니스 인사이트</b> — <b>첫 구매 후 30일 내 재구매율 48.72%</b> → 신규의 절반이 한 달 안에 재구매. 초기 리텐션이 양호하므로 첫 구매 직후 30일 온보딩·리마케팅에 집중할 가치가 큼.</p>
+</section>
+
+<section class="q pb">
+<h2>Q7. 재고 임계치 미만 상품 (곧 품절 위험) <span class="badge" style="background:#059669">인덱스 추가</span></h2>
+<p class="req"><b>요구사항</b> — qty_on_hand &lt; reorder_point 상품, 부족량 큰 순. 선택 컬럼: product_id, name, qty, reorder_point, shortage.</p>
+<p class="analysis"><b>병목</b> — inventory 전량(600) Seq Scan 후 두 컬럼 비교 필터(600→61).</p>
+<p class="tune-h">튜닝: 부분 인덱스 — 두 컬럼 비교 조건을 그대로 인덱스 조건으로 (품절 위험 상품만 인덱싱)</p>
+<p class="sql-h">SQL — 튜닝 전 쿼리</p>
+<pre class="ddl">SELECT i.product_id, p.product_name, i.qty_on_hand, i.reorder_point,
+       (i.reorder_point - i.qty_on_hand) AS shortage
+FROM   inventory i
+JOIN   products p ON p.product_id = i.product_id
+WHERE  i.qty_on_hand &lt; i.reorder_point
+ORDER BY shortage DESC;</pre>
+<p class="sql-h">SQL — 튜닝 후 (인덱스 DDL)</p>
+<pre class="ddl">-- 두 컬럼 비교 조건을 그대로 담은 부분 인덱스, 쿼리는 동일
+CREATE INDEX idx_inventory_low_stock ON inventory(product_id)
+  WHERE qty_on_hand &lt; reorder_point;
+--   (600행 소형이라 옵티마이저는 Seq Scan 선택; 인덱스 활용 계획은
+--    SET enable_seqscan=off로 검증 → Bitmap Index Scan 61행)</pre>
+<figure class="fig"><img src="captures/q07_before.png" style="max-width:100%"><figcaption>▲ 튜닝 전 — EXPLAIN (ANALYZE, BUFFERS) baseline 실행계획</figcaption></figure>
+<figure class="fig"><img src="captures/q07_after.png" style="max-width:100%"><figcaption>▲ 튜닝 후 — 인덱스/재작성 적용 후 실행계획</figcaption></figure>
+<figure class="fig"><img src="captures/q07_result.png" style="max-width:70%"><figcaption>▲ 실행 결과 (튜닝 전후 동일 — 정확성 보존)</figcaption></figure>
+<p class="improve"><b>개선</b> — <b>Seq Scan(600행 전수) → Bitmap Index Scan (idx_inventory_low_stock, 61행)</b>. 단, 600행 소형이라 절대시간은 Seq Scan이 최저(옵티마이저 정당) — 접근 행수↓는 재고가 커질수록 이득.</p>
+<p class="rez"><b>결과</b> — 품절 위험 61건, 상위는 재고 0 / reorder_point 30 (shortage 30)</p>
+<p class="insight"><b>비즈니스 인사이트</b> — <b>품절 위험 61건, 그중 재고 0이 5건</b> → 즉시 발주 대상. 부족량(shortage) 내림차순으로 발주 우선순위를 바로 산출.</p>
+</section>
+
+<section class="q pb">
+<h2>Q8. 효자상품 — 평점 4.5↑ &amp; 리뷰 50↑ <span class="badge" style="background:#059669">인덱스 추가</span></h2>
+<p class="req"><b>요구사항</b> — HAVING avg(rating)&gt;=4.5 AND count(*)&gt;=50. 선택 컬럼: product_id, name, avg_rating, review_cnt.</p>
+<p class="analysis"><b>병목</b> — reviews 전량(2,064) Seq Scan → products 조인 → HashAggregate + HAVING.</p>
+<p class="tune-h">튜닝: 커버링 인덱스 — product_id로 그룹, rating은 INCLUDE (Index Only Scan)</p>
+<p class="sql-h">SQL — 튜닝 전 쿼리</p>
+<pre class="ddl">SELECT p.product_id, p.product_name,
+       round(avg(r.rating),2) AS avg_rating, count(*) AS review_cnt
+FROM   reviews r
+JOIN   products p ON p.product_id = r.product_id
+GROUP BY p.product_id, p.product_name
+HAVING avg(r.rating) &gt;= 4.5 AND count(*) &gt;= 50
+ORDER BY avg_rating DESC, review_cnt DESC;</pre>
+<p class="sql-h">SQL — 튜닝 후 (인덱스 DDL)</p>
+<pre class="ddl">-- product_id로 그룹, rating은 INCLUDE 한 커버링 인덱스, 쿼리는 동일
+CREATE INDEX idx_reviews_prod_rating ON reviews(product_id) INCLUDE (rating);
+--   (Index Only Scan 계획은 SET enable_seqscan=off로 검증 → Heap Fetches 0)</pre>
+<figure class="fig"><img src="captures/q08_before.png" style="max-width:100%"><figcaption>▲ 튜닝 전 — EXPLAIN (ANALYZE, BUFFERS) baseline 실행계획</figcaption></figure>
+<figure class="fig"><img src="captures/q08_after.png" style="max-width:100%"><figcaption>▲ 튜닝 후 — 인덱스/재작성 적용 후 실행계획</figcaption></figure>
+<figure class="fig"><img src="captures/q08_result.png" style="max-width:70%"><figcaption>▲ 실행 결과 (튜닝 전후 동일 — 정확성 보존)</figcaption></figure>
+<p class="improve"><b>개선</b> — <b>Seq Scan → Index Only Scan (Heap Fetches: 0)</b> — (product_id, rating)만 읽어 heap I/O 제거. 2,064행 규모라 절대시간은 유사하나 리뷰 폭증 대비 확장성 확보.</p>
+<p class="rez"><b>결과</b> — 효자상품 12개 (avg 4.71~4.83, 리뷰 160~161개, 전후 동일)</p>
+<p class="insight"><b>비즈니스 인사이트</b> — <b>효자상품 12개(평점 4.71~4.83, 리뷰 160+)</b> → 검증된 고평점·고리뷰 상품. 메인 노출·번들·리뷰 마케팅의 1순위 후보.</p>
+</section>
+
+<section class="q pb">
+<h2>Q9. 쿠폰 사용 영향 — 쿠폰 有/無 AOV 비교 <span class="badge" style="background:#7c3aed">쿼리 재작성</span></h2>
+<p class="req"><b>요구사항</b> — coupon_code 유무별 주문수·AOV. 선택 컬럼: used_coupon, orders, aov.</p>
+<p class="analysis"><b>병목</b> — 주문 단위 집계 후 바깥 GroupAggregate가 (used_coupon, order_id) 기준 <b>Sort(5,216행)</b> → 불필요 정렬.</p>
+<p class="tune-h">튜닝: 쿼리 재작성 — 안쪽에서 (order_id, used_coupon) 선집계 → 바깥 HashAggregate</p>
+<p class="sql-h">SQL — 튜닝 전 쿼리</p>
+<pre class="ddl">SELECT (o.coupon_code IS NOT NULL) AS used_coupon,
+       count(DISTINCT o.order_id)       AS orders,
+       round(avg(order_rev),2)          AS aov
+FROM (
+  SELECT o.order_id, o.coupon_code, sum(oi.line_total) AS order_rev
+  FROM   orders o JOIN order_items oi ON oi.order_id = o.order_id
+  WHERE  o.order_status IN (&#x27;paid&#x27;,&#x27;shipped&#x27;,&#x27;delivered&#x27;)
+  GROUP BY o.order_id, o.coupon_code
+) o
+GROUP BY 1;</pre>
+<p class="sql-h">SQL — 튜닝 후 (재작성 쿼리)</p>
+<pre class="ddl">-- 안쪽에서 (order_id, used_coupon) 선집계 → 바깥 HashAggregate (외부 Sort 제거)
+SELECT used_coupon, count(*) AS orders, round(avg(order_rev),2) AS aov
+FROM (
+  SELECT o.order_id, (o.coupon_code IS NOT NULL) AS used_coupon,
+         sum(oi.line_total) AS order_rev
+  FROM   orders o JOIN order_items oi ON oi.order_id = o.order_id
+  WHERE  o.order_status IN (&#x27;paid&#x27;,&#x27;shipped&#x27;,&#x27;delivered&#x27;)
+  GROUP BY o.order_id, (o.coupon_code IS NOT NULL)
+) t
+GROUP BY used_coupon;</pre>
+<figure class="fig"><img src="captures/q09_before.png" style="max-width:100%"><figcaption>▲ 튜닝 전 — EXPLAIN (ANALYZE, BUFFERS) baseline 실행계획</figcaption></figure>
+<figure class="fig"><img src="captures/q09_after.png" style="max-width:100%"><figcaption>▲ 튜닝 후 — 인덱스/재작성 적용 후 실행계획</figcaption></figure>
+<figure class="fig"><img src="captures/q09_result.png" style="max-width:70%"><figcaption>▲ 실행 결과 (튜닝 전후 동일 — 정확성 보존)</figcaption></figure>
+<p class="improve"><b>개선</b> — <b>GroupAggregate + Sort(5,216행) → HashAggregate</b>. 불필요한 외부 정렬 노드 제거.</p>
+<p class="rez"><b>결과</b> — 쿠폰無 3,953건 AOV 635.61 vs <b>쿠폰有 1,263건 AOV 1,827.10</b> (SAVE10이 고액주문에 집중)</p>
+<p class="insight"><b>비즈니스 인사이트</b> — <b>쿠폰 사용 주문 AOV 1,827 vs 미사용 635 — 약 2.9배</b>. 쿠폰이 고액 주문에 집중되어 업셀링·객단가 상승 효과를 시사(쿠폰=단순 할인이 아니라 큰 장바구니를 유도).</p>
+</section>
+
+<section class="q pb">
+<h2>Q10. 상위 1% 고객의 최근 60일 매출 <span class="badge" style="background:#059669">인덱스 추가</span></h2>
+<p class="req"><b>요구사항</b> — 최근 60일 매출 상위 1%(99퍼센타일↑) 고객. 선택 컬럼: customer_id, rev.</p>
+<p class="analysis"><b>병목</b> — 최근 60일 매출을 고객별 집계. orders를 (상태 AND 60일) 필터로 <b>Seq Scan</b>(3,892행 제거).</p>
+<p class="tune-h">튜닝: 부분 인덱스(idx_orders_rev_ts) 활용 — 60일=약 42%로 Q3보다 선택적</p>
+<p class="sql-h">SQL — 튜닝 전 쿼리</p>
+<pre class="ddl">WITH cust_rev AS (
+  SELECT o.customer_id, sum(oi.line_total) AS rev
+  FROM   orders o JOIN order_items oi ON oi.order_id = o.order_id
+  WHERE  o.order_status IN (&#x27;paid&#x27;,&#x27;shipped&#x27;,&#x27;delivered&#x27;)
+    AND  o.order_ts &gt;= now() - interval &#x27;60 days&#x27;
+  GROUP BY o.customer_id
+)
+SELECT customer_id, rev FROM cust_rev
+WHERE rev &gt;= (SELECT percentile_cont(0.99) WITHIN GROUP (ORDER BY rev) FROM cust_rev)
+ORDER BY rev DESC;</pre>
+<p class="sql-h">SQL — 튜닝 후 (인덱스 DDL)</p>
+<pre class="ddl">-- Q1과 동일 부분 인덱스 재사용(60일 ≈ 42%로 선택적), 쿼리는 동일
+CREATE INDEX idx_orders_rev_ts ON orders(order_ts)
+  WHERE order_status IN (&#x27;paid&#x27;,&#x27;shipped&#x27;,&#x27;delivered&#x27;);</pre>
+<figure class="fig"><img src="captures/q10_before.png" style="max-width:100%"><figcaption>▲ 튜닝 전 — EXPLAIN (ANALYZE, BUFFERS) baseline 실행계획</figcaption></figure>
+<figure class="fig"><img src="captures/q10_after.png" style="max-width:100%"><figcaption>▲ 튜닝 후 — 인덱스/재작성 적용 후 실행계획</figcaption></figure>
+<figure class="fig"><img src="captures/q10_result.png" style="max-width:70%"><figcaption>▲ 실행 결과 (튜닝 전후 동일 — 정확성 보존)</figcaption></figure>
+<p class="improve"><b>개선</b> — orders 접근이 <b>Seq Scan → Bitmap Index Scan (idx_orders_rev_ts)</b> (60일 ≈ 42%로 Q3보다 선택적이라 인덱스 채택).</p>
+<p class="rez"><b>결과</b> — 상위 1% = 18명 (고객 19번 33,828 ~ 29번 20,696, 전후 동일)</p>
+<p class="insight"><b>비즈니스 인사이트</b> — 최근 60일 기준 <b>상위 1% = 18명</b>이 고매출 구간을 형성. 소수 VIP의 최근 활성도가 높아 이탈 방지·전용 혜택의 ROI가 큼.</p>
+</section>
+
+<section class="q pb">
+<h2>Q11. 안전 나눗셈 UDF(f_safe_div)로 채널별 AOV <span class="badge" style="background:#7c3aed">쿼리 재작성</span></h2>
+<p class="req"><b>요구사항</b> — 분모 0이어도 에러 없이 0 반환하는 UDF로 채널별 AOV. 선택 컬럼: channel, revenue, orders, safe_aov.</p>
+<p class="analysis"><b>병목</b> — orders = <b>count(DISTINCT order_id)</b> → GroupAggregate 입력 (channel, order_id) <b>14,250행 Sort</b>.</p>
+<p class="tune-h">튜닝: 쿼리 재작성 — 주문 단위 선집계 후 채널별 재집계. f_safe_div로 분모 0 안전 처리</p>
+<p class="sql-h">SQL — 튜닝 전 쿼리</p>
+<pre class="ddl">SELECT o.channel, sum(oi.line_total) AS revenue,
+       count(DISTINCT o.order_id) AS orders,
+       round(f_safe_div(sum(oi.line_total), count(DISTINCT o.order_id)),2) AS safe_aov
+FROM   orders o
+JOIN   order_items oi ON oi.order_id = o.order_id
+WHERE  o.order_status IN (&#x27;paid&#x27;,&#x27;shipped&#x27;,&#x27;delivered&#x27;)
+GROUP BY o.channel ORDER BY revenue DESC;</pre>
+<p class="sql-h">SQL — 튜닝 후 (재작성 쿼리)</p>
+<pre class="ddl">-- 주문 단위 선집계 후 채널별 재집계 (count(DISTINCT) 제거) + 안전 나눗셈 UDF
+SELECT channel, sum(order_rev) AS revenue, count(*) AS orders,
+       round(f_safe_div(sum(order_rev), count(*)),2) AS safe_aov
+FROM (
+  SELECT o.order_id, o.channel, sum(oi.line_total) AS order_rev
+  FROM   orders o JOIN order_items oi ON oi.order_id = o.order_id
+  WHERE  o.order_status IN (&#x27;paid&#x27;,&#x27;shipped&#x27;,&#x27;delivered&#x27;)
+  GROUP BY o.order_id, o.channel
+) t
+GROUP BY channel ORDER BY revenue DESC;
+-- f_safe_div(100,0)=0 (에러 없음),  f_safe_div(100,4)=25</pre>
+<figure class="fig"><img src="captures/q11_before.png" style="max-width:100%"><figcaption>▲ 튜닝 전 — EXPLAIN (ANALYZE, BUFFERS) baseline 실행계획</figcaption></figure>
+<figure class="fig"><img src="captures/q11_after.png" style="max-width:100%"><figcaption>▲ 튜닝 후 — 인덱스/재작성 적용 후 실행계획</figcaption></figure>
+<figure class="fig"><img src="captures/q11_result.png" style="max-width:70%"><figcaption>▲ 실행 결과 (튜닝 전후 동일 — 정확성 보존)</figcaption></figure>
+<p class="improve"><b>개선</b> — count(DISTINCT)가 유발한 <b>이중 Sort(14,250행 + 외부 정렬) → HashAggregate</b>. 캡처 정상상태에서 실행시간도 절반 수준으로 감소(30.5ms → 15.4ms).</p>
+<p class="rez"><b>결과</b> — mobile 240만/2,633/913 · web 125만/1,310/954 · marketplace 117만/1,273/916 (전후 동일)</p>
+<p class="insight"><b>비즈니스 인사이트</b> — <b>mobile이 매출 최다(240만)</b>이나 채널별 AOV는 web(954)>marketplace(916)>mobile(913)로 근소. 유입이 모바일에 몰리므로 모바일 UX·전환율 개선의 레버리지가 가장 큼.</p>
+</section>
+
+
+<section class="pb">
+<h1 class="dh">제출물 2 · 3가지 조인 알고리즘 비교</h1>
+<p>동일 쿼리(최근 30일 주문 × order_items 집계)를 <code>enable_*</code> 플래그로 각 조인 전략을 강제하여
+실행계획·특성을 비교한다. 외부(orders) 1,836행 × 내부(order_items) 18,393행.</p>
+<table class="cmp">
+<tr><th>전략</th><th>실행계획 핵심</th><th>실행시간</th><th>유리한 상황</th></tr>
+<tr><td><b>Nested Loop</b></td><td>외부 각 행마다 내부를 <b>Index Only Scan</b>으로 프로브 (loops=1,836, Heap Fetches 0)</td><td class="t">약 7.6ms</td><td>외부가 작고 내부에 인덱스가 있을 때. 외부가 커지면 프로브 폭증에 불리.</td></tr>
+<tr><td><b>Hash Join</b></td><td>orders로 해시 빌드 + order_items 전량 Seq Scan 후 매칭 <span class="opt">(옵티마이저 기본 선택)</span></td><td class="t">약 5.8ms</td><td>인덱스 없거나 대량 등가 조인에 안정적.</td></tr>
+<tr><td><b>Merge Join</b></td><td>order_items는 인덱스 정렬 스캔, orders는 Sort 후 <b>병합</b></td><td class="t">약 5.7ms</td><td>양쪽이 이미 조인 키로 정렬되어 있을 때 매우 효율.</td></tr>
+</table>
+<p class="cap" style="margin-top:-2px">※ 실행시간은 강제 실행 단일 측정값으로 계측 오버헤드·편차가 있어 서로 근접(이 규모에선 알고리즘 선택이 시간에 큰 차이를 만들지 않으며, 핵심은 각 전략의 <b>계획 구조와 적용 상황</b>). 자동 선택 데모(아래 [기본])는 별도 실행이라 시간이 다를 수 있음.</p>
+<figure class="fig"><img src="captures/join0_auto.png" style="max-width:100%"><figcaption>▲ [기본] 옵티마이저 자동 선택 → Hash Join 채택 (자동 선택 데모)</figcaption></figure>
+<figure class="fig"><img src="captures/join1_nlj.png" style="max-width:100%"><figcaption>▲ [1] Nested Loop 강제 — Index Only Scan 프로브(loops=1,836)</figcaption></figure>
+<figure class="fig"><img src="captures/join2_hash.png" style="max-width:100%"><figcaption>▲ [2] Hash Join 강제 — order_items 전량 스캔 + 해시</figcaption></figure>
+<figure class="fig"><img src="captures/join3_merge.png" style="max-width:100%"><figcaption>▲ [3] Merge Join 강제 — Sort 후 병합</figcaption></figure>
+</section>
+
+
+<section class="pb">
+<h1 class="dh">제출물 3 · Materialized View (mv_daily_gmv)</h1>
+<p>매일 총 판매금액(GMV) 리포트를 <b>매번 JOIN+SUM</b> 하면 느리므로, 사전 집계한
+<code>mv_daily_gmv</code>로 리포트 질의를 가속한다.</p>
+<pre class="ddl">CREATE MATERIALIZED VIEW mv_daily_gmv AS
+SELECT date_trunc('day', o.order_ts) AS day, sum(oi.line_total) AS gmv
+FROM orders o JOIN order_items oi ON oi.order_id = o.order_id
+WHERE o.order_status IN ('paid','shipped','delivered')
+GROUP BY 1;
+CREATE UNIQUE INDEX ux_mv_daily_gmv_day ON mv_daily_gmv(day);  -- CONCURRENTLY 갱신 대비</pre>
+<table class="cmp">
+<tr><th>구분</th><th>실행계획</th><th>실행시간</th></tr>
+<tr><td>MV 미사용 (JOIN+SUM 직접 집계)</td><td>Seq Scan×2 + Hash Join + HashAggregate (14,250행 집계)</td><td class="t">약 <b>8.5ms</b></td></tr>
+<tr><td>MV 사용 (사전 집계 124행 조회)</td><td>Index Scan Backward (ux_mv_daily_gmv_day)</td><td class="t">약 <b>0.04ms</b></td></tr>
+</table>
+<p class="improve"><b>개선</b> — CLI 정상상태 반복 측정 기준 약 <b>200배</b> 단축(8.5ms→0.04ms). 세 제출물 중 <b>유일하게 대규모의 실질 시간 이득</b>으로, 집계 자체를 미리 계산해 두므로 order_items 전량 스캔·집계를 통째로 건너뛴다. 리포트성(반복) 질의에 Materialized View가 효과적.
+비용: 저장공간 + 갱신(REFRESH) 필요. <b>갱신 전략</b>: 리포트가 오후 3시 기준이면 매일 15:00
+스케줄러(cron/pg_cron)로 <code>REFRESH MATERIALIZED VIEW</code>; 무중단이 필요하면 UNIQUE 인덱스 +
+<code>REFRESH ... CONCURRENTLY</code>.</p>
+<figure class="fig"><img src="captures/mv1_without.png" style="max-width:100%"><figcaption>▲ [MV 미사용] 일자별 GMV 직접 집계 — JOIN+SUM, 약 7.9ms</figcaption></figure>
+<figure class="fig"><img src="captures/mv2_with.png" style="max-width:100%"><figcaption>▲ [MV 사용] REFRESH 후 같은 리포트를 MV에서 조회 — Index Scan, 약 0.02ms</figcaption></figure>
+<figure class="fig"><img src="captures/mv3_result.png" style="max-width:70%"><figcaption>▲ MV 결과 미리보기 (일자별 GMV) 및 행 수(124일)</figcaption></figure>
+</section>
+
+
+<section class="pb">
+<h1 class="dh">종합 요약</h1>
+<table class="cmp">
+<tr><th>#</th><th>튜닝 기법</th><th>계획 변화 (전 → 후) — 핵심 근거</th><th>정상상태 대표시간(CLI)</th></tr>
+<tr><td>Q1</td><td>부분 인덱스</td><td>Seq Scan → Bitmap Index Scan (orders 접근 인덱스화)</td><td class="t">~4.5 → ~3.8ms</td></tr>
+<tr><td>Q2</td><td>쿼리 재작성</td><td>GroupAggregate+Sort(14,250행) → HashAggregate</td><td class="t">~10 → ~7ms</td></tr>
+<tr><td>Q3</td><td>계획 분석</td><td>Seq Scan 유지 (90일 저선택도, 옵티마이저 판단 정당)</td><td class="t">~7.7 (동일)</td></tr>
+<tr><td>Q4</td><td>계획 분석</td><td>전량 집계·RANK Sort 불가피 → 전처리(MV)가 정답</td><td class="t">계산 바운드</td></tr>
+<tr><td>Q5</td><td>쿼리 재작성</td><td>GroupAggregate+Sort(14,250행) → HashAggregate</td><td class="t">~9 → ~8ms</td></tr>
+<tr><td>Q6</td><td>복합 부분 인덱스</td><td>Index Scan(heap 재확인, buf 5,539) → Index Only Scan</td><td class="t">~6ms (버퍼↓)</td></tr>
+<tr><td>Q7</td><td>부분 인덱스</td><td>Seq Scan(600) → Bitmap Index Scan(61) — 접근행수↓</td><td class="t">~0.2 → ~0.29ms*</td></tr>
+<tr><td>Q8</td><td>커버링 인덱스</td><td>Seq Scan → Index Only Scan (Heap Fetches 0)</td><td class="t">~1.4 → ~1.2ms</td></tr>
+<tr><td>Q9</td><td>쿼리 재작성</td><td>GroupAggregate+Sort(5,216행) → HashAggregate</td><td class="t">~7.1 → ~6.3ms</td></tr>
+<tr><td>Q10</td><td>부분 인덱스</td><td>Seq Scan → Bitmap Index Scan (60일≈42%)</td><td class="t">~6ms</td></tr>
+<tr><td>Q11</td><td>쿼리 재작성+UDF</td><td>이중 Sort(14,250행+외부) → HashAggregate</td><td class="t">~10.5 → ~6ms</td></tr>
+<tr><td>조인</td><td>NLJ/Hash/Merge</td><td>전략별 실행계획·특성 비교</td><td class="t">상황별 최적 전략</td></tr>
+<tr><td>MV</td><td>사전 집계</td><td>JOIN+SUM(전량 집계) → Index Scan (MV 124행)</td><td><b>8.5 → 0.04ms (~200배)</b></td></tr>
+</table>
+<p class="note">※ <b>측정 유의점</b> — 데이터 규모(orders 6,770·order_items 18,393)가 작아 절대 실행시간은 수 ms대이고,
+EXPLAIN ANALYZE의 행별 계측 오버헤드 때문에 <b>캡처 이미지의 시간은 실제보다 부풀려지고 실행마다 편차가 크다</b>
+(예: 캡처 20ms대여도 CLI 반복 측정은 7ms대). 따라서 튜닝의 핵심 근거는 <b>실행계획 노드(스캔·조인·정렬)와 접근 행수·버퍼의 변화</b>이며,
+위 '정상상태 대표시간'은 CLI에서 6회 반복 측정한 대표값이다. 이 효과는 데이터가 커질수록 실질 이득으로 확대된다.
+<b>인덱스가 항상 이득은 아니며</b>(Q3·Q4는 Seq Scan 유지가 최적, Q7*는 소형 테이블에서 인덱스가 오히려 근소하게 느림),
+비용기반 옵티마이저의 선택을 함께 분석하였다. 실질적으로 큰 시간 이득은 <b>Materialized View(약 200배)</b>에서 나온다.</p>
+
+<h2 style="margin-top:14px">스캔·인덱스·조인 전략 정리</h2>
+<ul>
+  <li><b>스캔 방식</b> — <b>Seq Scan</b>(소형·저선택도 필터: Q3·Q4·Q7·Q8에서 최적), <b>Bitmap Index Scan</b>(부분 인덱스로 선택적 구간만: Q1·Q10), <b>Index Only Scan</b>(커버링/복합 인덱스로 heap 접근 제거, Heap Fetches 0: Q6·Q8)를 상황별로 확인.</li>
+  <li><b>인덱스 전략</b> — <b>부분 인덱스</b>(매출 상태·품절 조건만 색인: Q1·Q7·Q10), <b>복합 부분 인덱스</b>((customer_id, order_ts)+status: Q6), <b>커버링 인덱스</b>(product_id INCLUDE rating: Q8). 인덱스 크기·유지비를 낮추면서 필요한 행만 겨냥.</li>
+  <li><b>쿼리 재작성</b> — <code>count(DISTINCT)</code>가 유발하는 대형 Sort를 <b>주문 단위 선집계 → HashAggregate</b>로 제거(Q2·Q5·Q9·Q11). 인덱스 없이 계획 자체를 개선.</li>
+  <li><b>조인 전략</b> — 이 데이터에선 대량 등가 조인에 <b>Hash Join</b>이 기본 선택. 외부가 작고 내부에 인덱스가 있으면 <b>Nested Loop</b>(Index Only Scan 프로브), 정렬된 입력이면 <b>Merge Join</b>이 유리(제출물 2 참조).</li>
+  <li><b>사전 집계</b> — 반복 조회되는 리포트성 질의는 <b>Materialized View</b>로 집계를 미리 계산해 전량 스캔·집계를 통째로 회피(제출물 3, 약 200배).</li>
+</ul>
+</section>
+
+
+<section class="pb">
+<h1 class="dh">부록 · DB 엔진별 옵티마이저 특징 비교</h1>
+<p>같은 SQL이라도 엔진마다 옵티마이저 동작·튜닝 접근이 다르다. 본 실습(PostgreSQL) 관점에서 주요 엔진을 정리한다.</p>
+<table class="cmp">
+<tr><th>엔진</th><th>옵티마이저 특징</th><th>튜닝 관점</th></tr>
+<tr><td><b>PostgreSQL</b><br>(본 실습)</td><td>통계 기반의 엄격한 <b>비용기반 옵티마이저(CBO)</b>. Hash Join·Bitmap Heap Scan·부분/커버링 인덱스 등 분석(OLAP)에 강점.</td><td><code>EXPLAIN (ANALYZE, BUFFERS)</code>로 계획·버퍼 분석, 부분/커버링 인덱스·Materialized View 적극 활용.</td></tr>
+<tr><td><b>MySQL</b></td><td>전통적으로 OLTP 중심이라 <b>Nested Loop</b> 의존이 컸으나 8.0부터 <b>Hash Join</b> 지원으로 대량 집계 성능 개선.</td><td>커버링 인덱스·복합 인덱스 설계가 핵심. 옵티마이저 힌트 제한적.</td></tr>
+<tr><td><b>Oracle</b></td><td>가장 방대·정교한 통계와 <b>튜닝 힌트(Hint)</b>. DBA가 실행계획을 세밀하게 제어 가능(상용 강자).</td><td>Hint·SQL Plan Baseline으로 계획 고정, 파티셔닝·병렬 활용.</td></tr>
+<tr><td><b>SQL Server</b></td><td>고도로 자동화된 옵티마이저. 실행계획 분석 시 <b>Missing Index(누락 인덱스) 추천</b>, CPU 병렬 처리에 강점.</td><td>추천 인덱스 검토 + 실행계획 캐시(Plan Cache) 관리.</td></tr>
+</table>
+<p class="note">※ 공통 원리는 동일하다 — <b>필요한 행만 읽고(스캔·인덱스), 불필요한 정렬을 줄이며(재작성), 반복 집계는 미리 계산(MV)</b>. 엔진별 차이는 '어떤 계획을 어떻게 강제·유도하느냐'의 방법론 차이다.</p>
+</section>
+

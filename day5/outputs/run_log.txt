@@ -1,0 +1,224 @@
+===== 00_env =====
+SET
+You are connected to database "skala_db" as user "parkyoungseo" on host "localhost" (address "::1") at port "5432".
+                 List of relations
+ Schema |       Name        | Type  |    Owner     
+--------+-------------------+-------+--------------
+ ecom   | addresses         | table | parkyoungseo
+ ecom   | categories        | table | parkyoungseo
+ ecom   | country           | table | parkyoungseo
+ ecom   | customers         | table | parkyoungseo
+ ecom   | inventory         | table | parkyoungseo
+ ecom   | order_items       | table | parkyoungseo
+ ecom   | orders            | table | parkyoungseo
+ ecom   | payments          | table | parkyoungseo
+ ecom   | product_prices    | table | parkyoungseo
+ ecom   | product_suppliers | table | parkyoungseo
+ ecom   | products          | table | parkyoungseo
+ ecom   | reviews           | table | parkyoungseo
+ ecom   | shipments         | table | parkyoungseo
+ ecom   | suppliers         | table | parkyoungseo
+(14 rows)
+
+     tbl     | count 
+-------------+-------
+ customers   |  3000
+ inventory   |   600
+ order_items | 18393
+ orders      |  6770
+ payments    |  5644
+ products    |   600
+ reviews     |  2064
+ shipments   |  3470
+(8 rows)
+
+ order_status | count 
+--------------+-------
+ delivered    |  1986
+ paid         |  1746
+ shipped      |  1484
+ cancelled    |   650
+ created      |   476
+ refunded     |   428
+(6 rows)
+
+
+===== 12_join_compare =====
+SET
+                                                          QUERY PLAN                                                           
+-------------------------------------------------------------------------------------------------------------------------------
+ HashAggregate  (cost=646.56..669.49 rows=1834 width=40) (actual time=7.900..8.460 rows=1833 loops=1)
+   Group Key: o.order_id
+   Batches: 1  Memory Usage: 881kB
+   Buffers: shared hit=248
+   ->  Hash Join  (cost=211.40..621.64 rows=4983 width=14) (actual time=2.401..6.510 rows=5011 loops=1)
+         Hash Cond: (oi.order_id = o.order_id)
+         Buffers: shared hit=248
+         ->  Seq Scan on order_items oi  (cost=0.00..361.93 rows=18393 width=14) (actual time=0.009..1.633 rows=18393 loops=1)
+               Buffers: shared hit=178
+         ->  Hash  (cost=188.48..188.48 rows=1834 width=8) (actual time=2.371..2.371 rows=1833 loops=1)
+               Buckets: 2048  Batches: 1  Memory Usage: 88kB
+               Buffers: shared hit=70
+               ->  Seq Scan on orders o  (cost=0.00..188.48 rows=1834 width=8) (actual time=0.014..2.135 rows=1833 loops=1)
+                     Filter: (order_ts >= (now() - '30 days'::interval))
+                     Rows Removed by Filter: 4937
+                     Buffers: shared hit=70
+ Planning:
+   Buffers: shared hit=282
+ Planning Time: 1.860 ms
+ Execution Time: 8.625 ms
+(20 rows)
+
+SET
+SET
+SET
+                                                                        QUERY PLAN                                                                         
+-----------------------------------------------------------------------------------------------------------------------------------------------------------
+ HashAggregate  (cost=1263.97..1286.89 rows=1834 width=40) (actual time=6.743..7.143 rows=1833 loops=1)
+   Group Key: o.order_id
+   Batches: 1  Memory Usage: 881kB
+   Buffers: shared hit=3664 read=89
+   ->  Nested Loop  (cost=0.29..1239.06 rows=4983 width=14) (actual time=0.018..5.705 rows=5011 loops=1)
+         Buffers: shared hit=3664 read=89
+         ->  Seq Scan on orders o  (cost=0.00..188.48 rows=1834 width=8) (actual time=0.009..1.585 rows=1833 loops=1)
+               Filter: (order_ts >= (now() - '30 days'::interval))
+               Rows Removed by Filter: 4937
+               Buffers: shared hit=70
+         ->  Index Only Scan using idx_oi_order_prod_cov on order_items oi  (cost=0.29..0.54 rows=3 width=14) (actual time=0.001..0.002 rows=3 loops=1833)
+               Index Cond: (order_id = o.order_id)
+               Heap Fetches: 0
+               Buffers: shared hit=3594 read=89
+ Planning Time: 0.121 ms
+ Execution Time: 7.216 ms
+(16 rows)
+
+RESET
+RESET
+RESET
+SET
+SET
+SET
+                                                          QUERY PLAN                                                           
+-------------------------------------------------------------------------------------------------------------------------------
+ HashAggregate  (cost=646.56..669.49 rows=1834 width=40) (actual time=3.692..3.974 rows=1833 loops=1)
+   Group Key: o.order_id
+   Batches: 1  Memory Usage: 881kB
+   Buffers: shared hit=248
+   ->  Hash Join  (cost=211.40..621.64 rows=4983 width=14) (actual time=0.894..2.979 rows=5011 loops=1)
+         Hash Cond: (oi.order_id = o.order_id)
+         Buffers: shared hit=248
+         ->  Seq Scan on order_items oi  (cost=0.00..361.93 rows=18393 width=14) (actual time=0.004..0.755 rows=18393 loops=1)
+               Buffers: shared hit=178
+         ->  Hash  (cost=188.48..188.48 rows=1834 width=8) (actual time=0.884..0.884 rows=1833 loops=1)
+               Buckets: 2048  Batches: 1  Memory Usage: 88kB
+               Buffers: shared hit=70
+               ->  Seq Scan on orders o  (cost=0.00..188.48 rows=1834 width=8) (actual time=0.005..0.787 rows=1833 loops=1)
+                     Filter: (order_ts >= (now() - '30 days'::interval))
+                     Rows Removed by Filter: 4937
+                     Buffers: shared hit=70
+ Planning Time: 0.099 ms
+ Execution Time: 4.091 ms
+(18 rows)
+
+RESET
+RESET
+RESET
+SET
+SET
+SET
+                                                                         QUERY PLAN                                                                          
+-------------------------------------------------------------------------------------------------------------------------------------------------------------
+ GroupAggregate  (cost=288.17..1049.89 rows=1834 width=40) (actual time=0.843..4.595 rows=1833 loops=1)
+   Group Key: o.order_id
+   Buffers: shared hit=285
+   ->  Merge Join  (cost=288.17..1002.05 rows=4983 width=14) (actual time=0.839..3.830 rows=5011 loops=1)
+         Merge Cond: (oi.order_id = o.order_id)
+         Buffers: shared hit=285
+         ->  Index Scan using idx_order_items_order on order_items oi  (cost=0.29..609.18 rows=18393 width=14) (actual time=0.013..1.556 rows=18378 loops=1)
+               Buffers: shared hit=215
+         ->  Sort  (cost=287.88..292.47 rows=1834 width=8) (actual time=0.819..0.887 rows=1833 loops=1)
+               Sort Key: o.order_id
+               Sort Method: quicksort  Memory: 49kB
+               Buffers: shared hit=70
+               ->  Seq Scan on orders o  (cost=0.00..188.48 rows=1834 width=8) (actual time=0.005..0.752 rows=1833 loops=1)
+                     Filter: (order_ts >= (now() - '30 days'::interval))
+                     Rows Removed by Filter: 4937
+                     Buffers: shared hit=70
+ Planning:
+   Buffers: shared hit=12
+ Planning Time: 0.088 ms
+ Execution Time: 4.898 ms
+(20 rows)
+
+RESET
+RESET
+RESET
+
+===== 13_materialized_view =====
+SET
+DROP MATERIALIZED VIEW
+SELECT 124
+CREATE INDEX
+CREATE INDEX
+                                                                QUERY PLAN                                                                 
+-------------------------------------------------------------------------------------------------------------------------------------------
+ Limit  (cost=935.77..935.80 rows=10 width=40) (actual time=6.743..6.744 rows=10 loops=1)
+   Buffers: shared hit=248
+   ->  Sort  (cost=935.77..948.81 rows=5216 width=40) (actual time=6.742..6.743 rows=10 loops=1)
+         Sort Key: (date_trunc('day'::text, o.order_ts)) DESC
+         Sort Method: top-N heapsort  Memory: 26kB
+         Buffers: shared hit=248
+         ->  HashAggregate  (cost=744.82..823.05 rows=5216 width=40) (actual time=6.690..6.731 rows=124 loops=1)
+               Group Key: date_trunc('day'::text, o.order_ts)
+               Batches: 1  Memory Usage: 273kB
+               Buffers: shared hit=248
+               ->  Hash Join  (cost=228.29..673.96 rows=14171 width=14) (actual time=1.014..5.334 rows=14250 loops=1)
+                     Hash Cond: (oi.order_id = o.order_id)
+                     Buffers: shared hit=248
+                     ->  Seq Scan on order_items oi  (cost=0.00..361.93 rows=18393 width=14) (actual time=0.001..0.744 rows=18393 loops=1)
+                           Buffers: shared hit=178
+                     ->  Hash  (cost=163.09..163.09 rows=5216 width=16) (actual time=1.009..1.009 rows=5216 loops=1)
+                           Buckets: 8192  Batches: 1  Memory Usage: 309kB
+                           Buffers: shared hit=70
+                           ->  Seq Scan on orders o  (cost=0.00..163.09 rows=5216 width=16) (actual time=0.001..0.728 rows=5216 loops=1)
+                                 Filter: (order_status = ANY ('{paid,shipped,delivered}'::text[]))
+                                 Rows Removed by Filter: 1554
+                                 Buffers: shared hit=70
+ Planning:
+   Buffers: shared hit=18
+ Planning Time: 0.092 ms
+ Execution Time: 6.755 ms
+(26 rows)
+
+REFRESH MATERIALIZED VIEW
+                                                                      QUERY PLAN                                                                      
+------------------------------------------------------------------------------------------------------------------------------------------------------
+ Limit  (cost=0.14..1.26 rows=10 width=40) (actual time=0.005..0.006 rows=10 loops=1)
+   Buffers: shared hit=1 read=1
+   ->  Index Scan Backward using ux_mv_daily_gmv_day on mv_daily_gmv  (cost=0.14..14.00 rows=124 width=40) (actual time=0.004..0.005 rows=10 loops=1)
+         Buffers: shared hit=1 read=1
+ Planning:
+   Buffers: shared hit=23 read=2
+ Planning Time: 0.079 ms
+ Execution Time: 0.009 ms
+(8 rows)
+
+    day     |   gmv    
+------------+----------
+ 2026-08-03 |   700.10
+ 2026-07-28 |   260.26
+ 2026-07-25 |   337.14
+ 2026-07-24 | 27889.86
+ 2026-07-23 | 35766.44
+ 2026-07-22 | 61289.70
+ 2026-07-21 | 45305.23
+ 2026-07-20 | 57629.43
+ 2026-07-19 | 43508.50
+ 2026-07-18 | 37398.53
+(10 rows)
+
+ mv_rows 
+---------
+     124
+(1 row)
+
