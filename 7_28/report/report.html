@@ -1,0 +1,113 @@
+<meta charset="utf-8">
+<title>[Linear Regression] 부동산 가격 회귀분석 — 수행 보고서</title>
+<style>
+@page { size:A4; margin:11mm 12mm; }
+*{box-sizing:border-box;}
+body{font-family:'Apple SD Gothic Neo','Malgun Gothic',-apple-system,sans-serif;color:#111;font-size:9.5pt;line-height:1.5;margin:0;}
+h1.title{font-size:12.5pt;margin:0 0 3px;font-weight:700;}
+.meta{color:#333;font-size:8pt;border-bottom:1px solid #333;padding-bottom:4px;margin-bottom:7px;}
+h1.task{font-size:10.5pt;margin:9px 0 4px;padding-bottom:2px;border-bottom:1.1px solid #111;font-weight:700;}
+h2{font-size:9.3pt;margin:7px 0 3px;font-weight:700;}
+p{margin:3px 0;} ul{margin:3px 0;padding-left:15px;} li{margin:1.5px 0;}
+.row{display:flex;gap:11px;align-items:flex-start;}
+.col{flex:1;}
+.fig{margin:3px 0;text-align:center;break-inside:avoid;}
+.fig img{border:1px solid #ccc;width:100%;}
+.fig figcaption{color:#444;font-size:7.5pt;margin-top:2px;text-align:left;line-height:1.3;}
+table{border-collapse:collapse;width:100%;margin:3px 0;font-size:8.1pt;}
+th,td{border:1px solid #999;padding:2px 5px;text-align:left;vertical-align:top;}
+th{background:#eee;font-weight:700;}
+td.n,th.n{text-align:right;} td.c,th.c{text-align:center;}
+.key{border-left:2px solid #111;padding:1px 0 1px 7px;margin:3px 0;}
+.pb{page-break-before:always;}
+code{background:#f4f4f4;padding:0 2px;border:1px solid #ddd;font-family:'SF Mono',Menlo,monospace;font-size:7pt;}
+</style>
+<h1 class="title">[Linear Regression] 부동산 가격 회귀분석 — 수행 보고서</h1>
+<p class="meta">2026-07-28 &nbsp;|&nbsp; 4기 광주 4반 박영서 &nbsp;|&nbsp; 데이터: UCI Real Estate Valuation (n=414, 대만 신뎬구) · 종속변수 price(평균 37.98, 단위 면적당 가격) · OLS(statsmodels), train/test 8:2(seed=42) &nbsp;|&nbsp; <b>판단 근거(어떤 그래프·수치에서 찾았는지) 중심</b> 정리</p>
+
+<h1 class="task">Task 1. Baseline 회귀분석 결과 해석</h1>
+
+<div class="row">
+<div class="col">
+<h2>1-1. 분포와 왜도 — 이상치·비선형 예고</h2>
+<figure class="fig"><img src="figs/dist_hist.png"><figcaption>▲ 변수별 히스토그램(제목=skew). price·dist_to_mrt 오른쪽 꼬리</figcaption></figure>
+<div class="key"><b>근거→판단</b> ① price skew <b>+0.60</b> 오른쪽 꼬리(고가 매물) → 잔차 정규성 위배 예상. ② dist_to_mrt skew <b>+1.89</b> 최대 → 로그변환 1순위 후보. ③ longitude skew −1.22이나 산점도상 대체로 증가 → 변환보다 공선성 문제.</div>
+</div>
+<div class="col">
+<h2>1-2. 변수–price 관계 — 선형성 점검</h2>
+<figure class="fig"><img src="figs/eda_scatter.png"><figcaption>▲ 변수 vs price 산점도+LOESS(빨강). 곡선이 직선 아니면 선형가정 의심</figcaption></figure>
+<div class="key"><b>근거→판단</b> LOESS <b>모양</b>에서: <b>dist_to_mrt</b>=급락 후 완만(감쇠형)→로그, <b>house_age</b>=U자(20년 최저)→제곱항. 나머지는 대체로 직선. <b>상관</b>(강도): dist −0.67·n_conv +0.57·lat +0.55·lon +0.52·age −0.21. 강도는 상관, 모양은 LOESS로 분리 판단.</div>
+</div>
+</div>
+
+<h2>1-3. 회귀계수 해석</h2>
+<table>
+<tr><th>변수</th><th class="n">계수</th><th class="n">p</th><th class="c">유의</th><th class="n">상관</th><th>해석</th></tr>
+<tr><td>transaction_date</td><td class="n">+5.44</td><td class="n">0.003</td><td class="c">O</td><td class="n">+0.09</td><td>거래시점 늦을수록 소폭↑</td></tr>
+<tr><td>house_age</td><td class="n">−0.27</td><td class="n">&lt;.001</td><td class="c">O</td><td class="n">−0.21</td><td>연식↑ 가격↓ (U자형이라 선형계수는 근사)</td></tr>
+<tr><td>dist_to_mrt</td><td class="n">−0.0048</td><td class="n">&lt;.001</td><td class="c">O</td><td class="n">−0.67</td><td>MRT 멀수록↓ (가장 강한 음의 관계)</td></tr>
+<tr><td>n_convenience</td><td class="n">+1.09</td><td class="n">&lt;.001</td><td class="c">O</td><td class="n">+0.57</td><td>편의점 1개↑ → 1.09↑</td></tr>
+<tr><td>latitude</td><td class="n">+229.0</td><td class="n">&lt;.001</td><td class="c">O</td><td class="n">+0.55</td><td>북쪽(도심)일수록↑</td></tr>
+<tr><td>longitude</td><td class="n">−29.5</td><td class="n">0.599</td><td class="c">X</td><td class="n">+0.52</td><td>단순상관 큰데 모델선 <b>비유의</b> → Task 3</td></tr>
+</table>
+<div class="key"><b>적합도</b> R²=0.558·Adj R²=0.550(분산 56% 설명). <b>Train RMSE 9.12 &gt; Test 7.31</b> 역전은 과적합 아니라 고가 이상치(price 117.5)가 우연히 train에 포함된 탓(근거: 1-1 오른쪽 꼬리).</div>
+
+<div class="row">
+<div class="col">
+<h2>1-4. 잔차 진단</h2>
+<figure class="fig"><img src="figs/resid_diag.png"><figcaption>▲ (좌)잔차 vs 적합값 (우)Q-Q</figcaption></figure>
+<ul>
+<li><b>등분산</b>: BP <b>p=0.209</b>(&gt;.05)+깔때기 없음 → 이분산 증거 약함.</li>
+<li><b>정규성 위배</b>: Q-Q 오른쪽 꼬리+잔차 skew 2.14·첨도 17.3·JB p≈0 → 이상치 탓.</li>
+<li><b>공선성</b>: <b>조건수 3.65e7</b>(위치변수 중복). DW 1.92(자기상관 없음).</li>
+</ul>
+</div>
+<div class="col">
+<h2>1-5. 잔차 vs 각 변수 — 비선형이 '어디에' 남았나</h2>
+<figure class="fig"><img src="figs/resid_vars.png"><figcaption>▲ 잔차 vs 각 변수. 0 주변 무작위가 아니면 그 변수 관계 미반영</figcaption></figure>
+<div class="key"><b>근거→판단</b> <b>house_age·dist_to_mrt</b>의 잔차에 곡선/치우침 잔여(타 변수는 평평) = 두 변수 비선형이 baseline에 아직 안 잡힘 → Task 2 변환 대상 <b>최종 확정</b>.</div>
+</div>
+</div>
+<div class="key"><b>Task 1 결론</b> — 분포·산점도·잔차 세 근거가 ① dist_to_mrt·house_age <b>비선형</b> ② 이상치로 인한 <b>정규성 위배</b> ③ 위치변수 <b>공선성</b>을 일관되게 가리킴 → Task 2·3의 출발점.</div>
+
+<h1 class="task pb">Task 2. 모델 개선 — 비선형 변수의 선형화</h1>
+<h2>2-1. 판단 근거를 어디서 찾았나 (3중 교차)</h2>
+<p>예시는 <code>log_features=['house_age']</code>였으나, 세 근거가 일관되게 다른 답을 가리켰다.</p>
+<table>
+<tr><th>변수</th><th>① 산점도 모양(1-2)</th><th>② 잔차 잔여(1-5)</th><th class="n">③ skew</th><th class="n">③ quad_gain</th><th class="n">③ log_gain</th><th>→ 처방</th></tr>
+<tr><td><b>house_age</b></td><td>U자(비단조)</td><td>U자 잔여</td><td class="n">0.38</td><td class="n"><b>0.157</b>(최대)</td><td class="n">0.066</td><td><b>제곱항</b>(로그✕)</td></tr>
+<tr><td><b>dist_to_mrt</b></td><td>감쇠형</td><td>치우침 잔여</td><td class="n"><b>1.89</b>(최대)</td><td class="n">0.073</td><td class="n">0.044</td><td><b>로그변환</b></td></tr>
+<tr><td>n_convenience</td><td>거의 직선</td><td>평평</td><td class="n">0.15</td><td class="n">0.004</td><td class="n">−0.019</td><td>변환 불필요</td></tr>
+</table>
+<div class="key"><b>핵심 판단 — skew만 보면 안 된다.</b> house_age는 skew(0.38) 작아도 <b>quad_gain 0.157 최대·U자</b> → 제곱항이 맞다. 예시의 house_age 로그변환도 개선은 되지만(Adj R² 0.550→0.579), 로그는 단조변환이라 U자 곡률을 다 담지 못해 <b>제곱항(0.586)</b>이 더 낫다. dist_to_mrt는 <b>skew 1.89·감쇠형</b> → 로그. 같은 비선형도 U자냐 감쇠냐로 처방이 갈린다.</div>
+<h2>2-2. 개선 후보 비교 — 근거대로 적용·검증</h2>
+<table>
+<tr><th>모델</th><th>처리</th><th class="n">Adj R²</th><th class="n">Test RMSE</th><th class="n">BP p</th><th>메모</th></tr>
+<tr><td>Baseline</td><td>변환 없음</td><td class="n">0.550</td><td class="n">7.31</td><td class="n">0.209</td><td>기준선</td></tr>
+<tr><td>A</td><td>log1p(dist_to_mrt)만</td><td class="n">0.627</td><td class="n">6.78</td><td class="n">0.131</td><td>감쇠형 로그화 효과 큼</td></tr>
+<tr><td>B</td><td>house_age²만</td><td class="n">0.586</td><td class="n">6.90</td><td class="n">0.315</td><td>U자 곡률 반영</td></tr>
+<tr><td><b>C</b></td><td><b>log(dist)+house_age²</b></td><td class="n"><b>0.645</b></td><td class="n"><b>6.55</b></td><td class="n">0.221</td><td><b>두 처방 결합=최고</b></td></tr>
+</table>
+<p><b>검증</b>: 모델 C에서 house_age 1차(−0.879)·2차(+0.0161)이 <b>모두 p&lt;.001로 유의</b> → 그래프로만 봤던 U자형이 <b>통계로도 확인</b>. Adj R² 0.550→<b>0.645</b>, Test RMSE 7.31→<b>6.55</b>로 설명력·예측오차가 함께 개선됐다.</p>
+<figure class="fig"><img src="figs/improve_resid.png" style="width:72%"><figcaption>▲ 잔차 vs 적합값(개선 전 → 후). 후(우)에 큰 양(+) 잔차가 줄고 밴드가 균일해짐 = 1-5의 잔여 곡선 패턴 해소</figcaption></figure>
+<div class="key"><b>Task 2 결론</b> — 변환 대상·방식을 감이 아니라 <b>세 근거(산점도·잔차·수치지표)의 일치</b>로 정했고, 적용 후 성능·잔차·계수 유의성으로 재검증했다.</div>
+
+<h1 class="task">Task 3. 유의하지 않은 변수 제거 — 유의성 vs 효과크기</h1>
+<p><b>3-1.</b> p가 가장 큰 <b>longitude</b>(C에서 p=0.892, baseline 0.599로 일관 비유의) 제거. <span style="color:#555">※ 변수 수 <b>7 = 원래 feature 6개 + 파생변수 house_age² 1개</b>. longitude 제거 시 6개.</span></p>
+<table>
+<tr><th></th><th class="n">변수 수</th><th class="n">Adj R²</th><th class="n">Test RMSE</th><th class="n">조건수(공선성)</th></tr>
+<tr><td>모델 C (전체)</td><td class="n">7 (feature 6 + house_age²)</td><td class="n">0.645</td><td class="n">6.55</td><td class="n">2.62e7</td></tr>
+<tr><td><b>C − longitude</b></td><td class="n">6</td><td class="n"><b>0.646</b></td><td class="n"><b>6.53</b></td><td class="n"><b>1.55e7</b></td></tr>
+</table>
+<p><b>근거</b>: 제거 후에도 Adj R²·Test RMSE가 손실 없이 미세 개선 + 조건수 2.62e7→1.55e7로 <b>1-4의 다중공선성이 실제 완화</b> → 제거 타당.</p>
+<div class="key"><b>3-2. 유의성 vs 효과크기</b> — 판단 근거는 <b>수치의 모순</b>: longitude는 price와 <b>단순상관 +0.52</b>(효과 있어 보임)인데 <b>모델 p=0.6~0.9</b>(효과 없음). '위치' 정보가 위도·MRT거리와 <b>겹쳐</b> 고유 기여(부분효과)가 0에 가깝기 때문. <b>유의성</b>=다른 변수 통제 시 0과 구분 여부, <b>효과크기</b>=실질 기여 크기. longitude는 단독 효과는 있으나 모델 내 고유 효과크기가 작아 제거가 옳다.</div>
+<p><b>추가 관찰</b> — 모델 C에서 n_convenience도 비유의(p=0.140)화됨(로그변환된 MRT거리가 '생활 편의' 정보 흡수). 다만 상관(+0.57)·해석이 좋아 <b>p값만으로 기계적 제거하지 않고</b> 효과크기·도메인 의미로 유지 판단도 가능.</p>
+
+<h2>종합 및 느낀점</h2>
+<table>
+<tr><th>단계</th><th>판단의 핵심 근거</th><th class="n">Adj R²</th><th class="n">Test RMSE</th></tr>
+<tr><td>Baseline</td><td>분포·산점도·잔차로 문제 진단(비선형·이상치·공선성)</td><td class="n">0.550</td><td class="n">7.31</td></tr>
+<tr><td>Task 2</td><td>3근거 일치 → dist 로그 + house_age 제곱</td><td class="n">0.645</td><td class="n">6.55</td></tr>
+<tr><td>Task 3</td><td>상관 vs p값·조건수 모순 해석 → longitude 제거</td><td class="n">0.646</td><td class="n">6.53</td></tr>
+</table>
+<p><b>느낀점</b> — 하나의 지표가 아니라 <b>여러 근거의 일치</b>로 판단했다. skew 커도 U자면 제곱항(산점도·잔차·quad_gain 일치), 상관 높아도 모델선 비유의(상관 vs p값 모순). "왜 그렇게 판단했는가"를 그래프·수치로 되짚는 과정이 정답 값을 얻는 것보다 중요했다.</p>
