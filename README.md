@@ -4,6 +4,7 @@ AI 서비스를 위한 SW 기초 Full-stack Engineering — 스마트 데이터 
 
 | Day | 주제 | 폴더 |
 |-----|------|------|
-| Day 3 | PostgreSQL 학사관리시스템 DB 설계·구축·조회 | [day3/](day3/) |
-| Day 4 | PostgreSQL JOIN·서브쿼리·윈도우함수 복합 쿼리 실습 (25문항) | [day4/](day4/) |
-| Day 5 | ecommerce 매출 분석 및 성능 튜닝 (EXPLAIN·인덱스·조인전략·Materialized View) | [day5/](day5/) |
+| Day 6 | PostgreSQL 학사관리시스템 DB 설계·구축·조회 | [day6/](day6/) |
+| Day 7 | PostgreSQL JOIN·서브쿼리·윈도우함수 복합 쿼리 실습 (25문항) | [day7/](day7/) |
+| Day 8 | ecommerce 매출 분석 및 성능 튜닝 (EXPLAIN·인덱스·조인전략·Materialized View) | [day8/](day8/) |
+| Day 14 | Java · SpringBoot · Rest API 구현 | [day14/](day14/) |

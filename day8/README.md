@@ -1,9 +1,9 @@
-# Day 5 종합실습-4 · ecommerce 매출 분석 및 성능 튜닝
+# Day 8 종합실습-4 · ecommerce 매출 분석 및 성능 튜닝
 
 AI 서비스를 위한 SW 기초 Full-stack Engineering — 스마트 데이터 이해 및 활용 · 광주캠퍼스 4반 박영서
 
 ## 제출물
-- **[광주캠퍼스_4반_박영서_day5종합실습.pdf](광주캠퍼스_4반_박영서_day5종합실습.pdf)** — 최종 리포트 (튜닝 전/후 실행계획·결과 캡처 포함)
+- **[광주캠퍼스_4반_박영서_day8종합실습.pdf](광주캠퍼스_4반_박영서_day8종합실습.pdf)** — 최종 리포트 (튜닝 전/후 실행계획·결과 캡처 포함)
 
 ## 제출물
 1. **Q1~Q11 튜닝 전/후** — 각 문항별 baseline 실행계획(EXPLAIN ANALYZE) → 병목 분석 → 튜닝(인덱스/재작성) → 튜닝 후 실행계획·결과 비교
@@ -12,7 +12,7 @@ AI 서비스를 위한 SW 기초 Full-stack Engineering — 스마트 데이터 
 
 ## 폴더 구성
 ```
-day5/
+day8/
 ├─ 종합실습4_ecom_schema_postgres_테이블생성.sql   # 스키마(교재 제공)
 ├─ 종합실습4_ecom_seed_postgres_데이터입력.sql      # 시드(교재 제공)
 ├─ sql/
