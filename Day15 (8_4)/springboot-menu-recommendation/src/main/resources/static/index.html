@@ -42,10 +42,31 @@
         /* 실습과제용 버튼은 색을 다르게 해서 구분합니다. */
         button.task { background: #f59e0b; }
         button.task:hover { background: #d97706; }
+        button.alt { background: #0d9488; }
+        button.alt:hover { background: #0f766e; }
+        /* 실패 케이스(없는 값 · 잘못된 범위) 버튼 */
+        button.fail { background: #64748b; }
+        button.fail:hover { background: #475569; }
         h2 {
             margin: 32px 0 0;
             font-size: 17px;
             color: #374151;
+        }
+        h3 {
+            margin: 22px 0 0;
+            font-size: 15px;
+            color: #4b5563;
+        }
+        .method {
+            display: inline-block;
+            margin-right: 6px;
+            padding: 2px 7px;
+            border-radius: 5px;
+            background: #dbeafe;
+            color: #1e40af;
+            font-size: 11px;
+            font-weight: bold;
+            vertical-align: middle;
         }
         h2 .badge {
             margin-left: 8px;
@@ -89,18 +110,48 @@
         <button data-url="/api/menu/json/korean">JSON 응답</button>
     </div>
 
-    <h2>실습과제<span class="badge">직접 만들기</span></h2>
+    <h2>실습과제<span class="badge">직접 구현</span></h2>
     <p class="hint">
-        아래 버튼은 화면에만 있고 서버에는 아직 API가 없습니다.
-        <code>MenuService</code>와 <code>MenuController</code>에 직접 코드를 작성해서
-        버튼이 동작하게 만들어 보세요.
+        <code>MenuService</code>(추천 규칙)와 <code>MenuController</code>(주소 매핑)에 직접 작성한 API입니다.
+        값을 바꿔 가며 눌러 결과가 어떻게 달라지는지 확인해 보세요.
     </p>
 
     <div class="buttons">
-        <button class="task" data-task="1" data-url="/api/menu/weather/rainy">① 날씨별 추천</button>
-        <button class="task" data-task="2" data-url="/api/menu/mood/happy">② 기분별 추천</button>
-        <button class="task" data-task="3" data-url="/api/menu/price/search?min=5000&max=10000">③ 가격대별 추천</button>
-        <button class="task" data-task="4" data-url="/api/menu/my/solo">④ 나만의 추천</button>
+        <button class="task" data-url="/api/menu/weather/rainy">① 날씨별 추천</button>
+        <button class="task" data-url="/api/menu/mood/happy">② 기분별 추천</button>
+        <button class="task" data-url="/api/menu/price/search?min=5000&max=10000">③ 가격대별 추천</button>
+        <button class="task" data-url="/api/menu/my/solo">④ 나만의 추천</button>
+    </div>
+
+    <h3><span class="method">GET</span>① 날씨별 — 값 바꿔 보기 <span style="font-weight:normal;color:#6b7280">(문자열 응답)</span></h3>
+    <div class="buttons">
+        <button class="alt" data-url="/api/menu/weather/sunny">맑은 날</button>
+        <button class="alt" data-url="/api/menu/weather/hot">더운 날</button>
+        <button class="alt" data-url="/api/menu/weather/cold">추운 날</button>
+        <button class="fail" data-url="/api/menu/weather/snowy">없는 값 (snowy)</button>
+    </div>
+
+    <h3><span class="method">GET</span>② 기분별 — JSON 응답</h3>
+    <div class="buttons">
+        <button class="alt" data-url="/api/menu/mood/sad">우울한 날</button>
+        <button class="alt" data-url="/api/menu/mood/tired">지친 날</button>
+        <button class="alt" data-url="/api/menu/mood/stressed">스트레스</button>
+        <button class="fail" data-url="/api/menu/mood/angry">없는 값 (angry)</button>
+    </div>
+
+    <h3><span class="method">GET</span>③ 가격대별 — 쿼리 파라미터</h3>
+    <div class="buttons">
+        <button class="alt" data-url="/api/menu/price/search?min=1000&max=5000">6,000원 이하</button>
+        <button class="alt" data-url="/api/menu/price/search?min=6000&max=12000">6,000~12,000원</button>
+        <button class="alt" data-url="/api/menu/price/search?min=15000&max=30000">12,000원 이상</button>
+        <button class="fail" data-url="/api/menu/price/search?min=20000&max=5000">잘못된 범위 (min &gt; max)</button>
+    </div>
+
+    <h3><span class="method">GET</span>④ 나만의 추천 — 같이 먹는 사람</h3>
+    <div class="buttons">
+        <button class="alt" data-url="/api/menu/my/friend">친구와</button>
+        <button class="alt" data-url="/api/menu/my/family">가족과</button>
+        <button class="fail" data-url="/api/menu/my/pet">없는 값 (pet)</button>
     </div>
 
     <div id="result">결과가 여기에 표시됩니다.</div>
@@ -117,26 +168,28 @@
             try {
                 const response = await fetch(url);
                 const contentType = response.headers.get("content-type") ?? "";
+                const isJson = contentType.includes("application/json");
+                const body = isJson ? await response.json() : await response.text();
 
-                // 실습과제 버튼인데 API가 아직 없으면(404) 안내 문구를 보여줍니다.
-                if (response.status === 404 && button.dataset.task) {
+                // 400 같은 실패 응답도 본문을 그대로 보여준다.
+                // (상태 코드만 보여주면 서버가 왜 거절했는지 알 수 없다)
+                if (!response.ok) {
+                    const reason = isJson && body.message ? body.message : "";
                     result.textContent =
-                        `아직 만들지 않은 API입니다. (실습과제 ${button.dataset.task}번)\n\n`
-                        + `요청한 주소: GET ${url}\n\n`
-                        + `MenuService에 추천 로직을, MenuController에 이 주소를 처리할\n`
-                        + `메서드를 추가하면 이 버튼이 동작합니다.`;
+                        `오류: HTTP ${response.status} ${response.statusText}\n`
+                        + `요청: GET ${url}\n\n`
+                        + (reason ? `${reason}\n\n` : "")
+                        + (isJson ? `(응답 본문)\n${JSON.stringify(body, null, 2)}` : body);
                     return;
                 }
 
-                if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}`);
-                }
-
-                if (contentType.includes("application/json")) {
-                    const data = await response.json();
-                    result.textContent = JSON.stringify(data, null, 2);
+                // JSON이면 message를 문장으로 먼저 보여주고, 원본 JSON을 함께 표시한다.
+                if (isJson) {
+                    result.textContent =
+                        (body.message ? `${body.message}\n\n` : "")
+                        + `(원본 JSON 응답)\n${JSON.stringify(body, null, 2)}`;
                 } else {
-                    result.textContent = await response.text();
+                    result.textContent = body;
                 }
             } catch (error) {
                 result.textContent = `오류: ${error.message}`;

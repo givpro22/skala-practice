@@ -58,8 +58,17 @@ GET http://localhost:8080/api/menu/price/search?min=5000&max=10000
 GET http://localhost:8080/api/menu/my/{companion}      # solo | friend | family
 ```
 
-네 개 모두 문자열로 응답합니다. JSON 응답 예시는 기존 `/api/menu/json/{category}`를 참고하세요.
+`/api/menu/mood/{mood}`만 `MenuResponse` JSON으로, 나머지 셋은 문자열로 응답합니다.
 `/api/menu/price/search`에 `min > max`인 값을 주면 400 Bad Request가 반환됩니다.
+
+Swagger UI: `http://localhost:8080/swagger-ui.html`
+
+Docker 실행:
+
+```bash
+docker build -t menu-recommendation:latest .
+docker run -d --name menu-app -p 8080:8080 menu-recommendation:latest
+```
 
 ## 학습 포인트
 

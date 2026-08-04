@@ -1,0 +1,848 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>백엔드 2일차 실습과제 — 메뉴 추천 API</title>
+<style>
+  /* Notion 웹 문서 스타일을 따른 조판 */
+  @page { size: A4; margin: 18mm 16mm 16mm; }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI",
+                 "Apple SD Gothic Neo", Helvetica, Arial, sans-serif;
+    font-size: 10pt;
+    line-height: 1.5;
+    color: rgb(55, 53, 47);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ── 페이지 제목 ── */
+  h1.page-title {
+    font-size: 26pt; font-weight: 700; line-height: 1.2;
+    letter-spacing: -0.01em; margin: 0 0 22px;
+  }
+
+  /* ── 헤딩 ── */
+  h2 { font-size: 16pt; font-weight: 600; line-height: 1.3; margin: 1.9em 0 6px; break-after: avoid; }
+  h3 { font-size: 12.5pt; font-weight: 600; line-height: 1.3; margin: 1.5em 0 4px; break-after: avoid; }
+  h4 { font-size: 10.5pt; font-weight: 600; line-height: 1.3; margin: 1.3em 0 4px; break-after: avoid; }
+
+  p { margin: 3px 0; padding: 3px 2px; }
+
+  ul, ol { margin: 3px 0; padding-left: 1.7em; }
+  li { padding: 2px 0; }
+  ul { list-style-type: disc; }
+  ul ul { list-style-type: circle; padding-left: 1.6em; }
+
+  /* ── 인라인 코드 ── */
+  code {
+    font-family: "SFMono-Regular", Menlo, Consolas, "Liberation Mono", monospace;
+    background: rgba(135, 131, 120, 0.15);
+    color: #EB5757;
+    border-radius: 3px;
+    font-size: 85%;
+    padding: 0.2em 0.4em;
+  }
+
+  /* ── 코드 블록 ── */
+  pre {
+    font-family: "SFMono-Regular", Menlo, Consolas, "Liberation Mono", monospace;
+    background: rgb(247, 246, 243);
+    border-radius: 3px;
+    padding: 14px 16px;
+    font-size: 8.2pt;
+    line-height: 1.5;
+    margin: 6px 0;
+    white-space: pre-wrap;
+    word-break: break-word;
+    tab-size: 2;
+    break-inside: avoid;
+  }
+  pre code { background: none; color: inherit; padding: 0; font-size: 100%; }
+  .kw { color: #0277aa; }
+  .an { color: #7c4dff; }
+  .st { color: #669900; }
+  .cm { color: #9b9a97; }
+
+  pre.term { background: rgb(55, 53, 47); color: #e6e5e3; }
+  pre.term .prompt { color: #7fd88f; }
+  pre.term .dim { color: #9b9a97; }
+
+  /* ── 콜아웃 (아이콘 없이 배경색으로만 구분) ── */
+  .callout {
+    background: rgb(241, 241, 239);
+    border-radius: 3px;
+    padding: 14px 16px;
+    margin: 8px 0;
+    font-size: 9.5pt;
+    break-inside: avoid;
+  }
+  .callout > *:first-child { margin-top: 0; padding-top: 0; }
+  .callout > *:last-child { margin-bottom: 0; padding-bottom: 0; }
+  .callout.blue { background: rgb(231, 243, 248); }
+  .callout.yellow { background: rgb(251, 243, 219); }
+  .callout.green { background: rgb(237, 243, 236); }
+
+  blockquote {
+    border-left: 3px solid rgb(55, 53, 47);
+    padding-left: 14px; margin: 6px 0; font-size: 9.5pt;
+  }
+
+  hr { border: none; border-top: 1px solid rgba(55, 53, 47, 0.09); margin: 26px 0; }
+
+  /* ── 표 ── */
+  table {
+    border-collapse: collapse; width: 100%;
+    margin: 6px 0 10px; font-size: 9pt; break-inside: avoid;
+  }
+  th, td {
+    border: 1px solid rgb(233, 233, 231);
+    padding: 7px 9px; text-align: left; vertical-align: top; line-height: 1.4;
+  }
+  th { background: rgb(247, 246, 243); font-weight: 600; }
+  td.c, th.c { text-align: center; }
+
+  /* ── 이미지 ── */
+  figure { margin: 10px 0 16px; break-inside: avoid; }
+  .shot { background: rgb(247, 246, 243); border-radius: 3px; padding: 14px; }
+  .shot img { width: 100%; display: block; border-radius: 2px; }
+  .shot img.tall { width: auto; max-width: 100%; max-height: 222mm; margin: 0 auto; }
+  .shot img.narrow { max-width: 92%; margin: 0 auto; }
+  figcaption {
+    margin-top: 7px; font-size: 8.2pt;
+    color: rgb(120, 119, 116); text-align: center; line-height: 1.4;
+  }
+  .pair { display: flex; gap: 12px; break-inside: avoid; margin: 10px 0 16px; }
+  .pair figure { flex: 1; margin: 0; }
+  .pair .shot img.narrow { max-width: 100%; }
+
+  /* ── 표지 ── */
+  .cover { height: 253mm; display: flex; flex-direction: column; }
+  .cover .kicker {
+    font-size: 8.5pt; letter-spacing: .16em; text-transform: uppercase;
+    color: rgb(120, 119, 116); font-weight: 600; margin-bottom: 14px;
+  }
+  .cover h1 {
+    font-size: 30pt; font-weight: 700; line-height: 1.15;
+    letter-spacing: -0.02em; margin: 0 0 10px;
+  }
+  .cover .subtitle {
+    font-size: 11.5pt; color: rgb(120, 119, 116); line-height: 1.5; margin: 0 0 34px;
+  }
+  .cover .spacer { flex: 1 1 auto; }
+
+  /* 노션 페이지 속성(properties) 블록 */
+  .props { margin: 0 0 34px; max-width: 118mm; }
+  .props .row {
+    display: flex; align-items: baseline;
+    padding: 9px 0;
+    border-bottom: 1px solid rgba(55, 53, 47, 0.09);
+  }
+  .props .row:first-child { border-top: 1px solid rgba(55, 53, 47, 0.09); }
+  .props .k {
+    flex: 0 0 74px; color: rgb(120, 119, 116);
+    font-size: 8.8pt; font-weight: 500;
+  }
+  .props .v { flex: 1 1 auto; font-size: 9.8pt; }
+
+  /* 완료 항목 태그 (노션 multi-select 스타일) */
+  .tags { display: flex; flex-wrap: wrap; gap: 6px; }
+  .tag {
+    font-size: 8.5pt; padding: 2px 9px; border-radius: 3px;
+    background: rgb(237, 243, 236); color: rgb(68, 131, 97);
+  }
+  .tag.b { background: rgb(231, 243, 248); color: rgb(51, 126, 169); }
+  .tag.y { background: rgb(251, 243, 219); color: rgb(153, 101, 0); }
+
+  /* ── 2단 목차 ── */
+  .toc-head {
+    font-size: 8.5pt; letter-spacing: .16em; text-transform: uppercase;
+    color: rgb(120, 119, 116); font-weight: 600;
+    padding-bottom: 8px; border-bottom: 1px solid rgba(55, 53, 47, 0.16);
+    margin-bottom: 4px;
+  }
+  .toc-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 26px; }
+  .toc-item { padding: 9px 0; border-bottom: 1px solid rgba(55, 53, 47, 0.06); }
+  .toc-item .n {
+    color: rgb(120, 119, 116); font-size: 8.5pt; font-weight: 600;
+    margin-right: 9px; font-variant-numeric: tabular-nums;
+  }
+  .toc-item .t { font-size: 9.8pt; font-weight: 500; }
+  .toc-item .sub {
+    display: block; padding-left: 24px; margin-top: 3px;
+    font-size: 8.5pt; color: rgb(120, 119, 116); line-height: 1.55;
+  }
+
+  /* ── 텍스트 색상 (Notion 팔레트) ── */
+  .t-gray { color: rgb(120, 119, 116); }
+  .t-red { color: rgb(212, 76, 71); }
+  .t-green { color: rgb(68, 131, 97); }
+  .bg-yellow { background: rgb(251, 243, 219); padding: 0 2px; border-radius: 2px; }
+  .bg-red { background: rgb(253, 235, 236); padding: 0 2px; border-radius: 2px; }
+  .bg-green { background: rgb(237, 243, 236); padding: 0 2px; border-radius: 2px; }
+
+  .page-break { break-before: page; }
+  .mono { font-family: "SFMono-Regular", Menlo, Consolas, monospace; }
+</style>
+</head>
+<body>
+
+<section class="cover">
+  <div class="kicker">SKALA · JAVA, REST API와 Spring Boot</div>
+  <h1>오늘 뭐 먹지?<br>메뉴 추천 REST API</h1>
+  <p class="subtitle">
+    날씨 · 기분 · 가격대 · 함께 먹는 사람에 따라 메뉴를 추천하는 API를<br>
+    Spring Boot로 직접 구현하고 문서화 · 테스트 · 컨테이너 실행까지 확장한 기록
+  </p>
+
+  <div class="props">
+    <div class="row"><div class="k">과제</div><div class="v">백엔드 2일차 실습 — 메뉴 추천 API 직접 만들기</div></div>
+    <div class="row"><div class="k">제출자</div><div class="v">광주 4반 · G122 박영서</div></div>
+    <div class="row"><div class="k">제출일</div><div class="v">2026년 8월 4일</div></div>
+    <div class="row"><div class="k">저장소</div><div class="v"><code>springboot-menu-recommendation</code></div></div>
+    <div class="row"><div class="k">환경</div><div class="v">Java 21 · Spring Boot 3.4.5 · Gradle 8.14.5</div></div>
+    <div class="row"><div class="k">실행</div><div class="v">
+      화면 <code>localhost:8080</code> · Swagger <code>localhost:8080/swagger-ui.html</code>
+    </div></div>
+    <div class="row"><div class="k">완료</div><div class="v">
+      <div class="tags">
+        <span class="tag">필수 API 4종</span>
+        <span class="tag b">Swagger 문서화</span>
+        <span class="tag b">MockMvc 10종</span>
+        <span class="tag y">Docker 실행</span>
+      </div>
+    </div></div>
+  </div>
+
+  <div class="spacer"></div>
+
+  <div class="toc-head">목차</div>
+  <div class="toc-grid">
+    <div class="toc-item"><span class="n">01</span><span class="t">개요</span>
+      <span class="sub">구현 범위 · 개발 환경 · 프로젝트 구조</span></div>
+    <div class="toc-item"><span class="n">06</span><span class="t">자동 테스트</span>
+      <span class="sub">MockMvc 10종 · 실행 결과</span></div>
+
+    <div class="toc-item"><span class="n">02</span><span class="t">주소 설계와 계층 분리</span>
+      <span class="sub">기존 매핑과의 충돌 회피 · Controller / Service 역할</span></div>
+    <div class="toc-item"><span class="n">07</span><span class="t">Docker</span>
+      <span class="sub">멀티 스테이지 빌드 · 비root 실행 · 실행 검증</span></div>
+
+    <div class="toc-item"><span class="n">03</span><span class="t">Swagger 전체 화면</span>
+      <span class="sub">OpenApiConfig · 등록된 API 9종</span></div>
+    <div class="toc-item"><span class="n">08</span><span class="t">트러블슈팅 기록</span>
+      <span class="sub">막혔던 세 지점과 해결 과정</span></div>
+
+    <div class="toc-item"><span class="n">04</span><span class="t">필수 과제 ①~④</span>
+      <span class="sub">날씨별 · 기분별(JSON) · 가격대별 · 나만의 추천</span></div>
+    <div class="toc-item"><span class="n">09</span><span class="t">마무리</span>
+      <span class="sub">배운 것 · 충족도 · 더 해볼 것</span></div>
+
+    <div class="toc-item"><span class="n">05</span><span class="t">차별화 기능</span>
+      <span class="sub">400 처리 · 문장 다듬기 · 화면 확장 · 문서화</span></div>
+    <div class="toc-item"></div>
+  </div>
+</section>
+
+<h2 class="page-break">1. 개요</h2>
+
+<p>시작 화면의 <span class="bg-yellow">주황색 버튼 4개</span>에 해당하는 API를 직접 구현하는 과제입니다.
+작업 파일은 <code>MenuService</code>(추천 로직)와 <code>MenuController</code>(주소 매핑) 두 개이며,
+화면(<code>index.html</code>)도 함께 확장했습니다.</p>
+
+<p>여기에 더해 Swagger 문서화 · 자동 테스트 · Docker 컨테이너 실행까지 붙여
+<span class="t-gray">"실습용 코드"에서 끝나지 않도록</span> 구성했습니다.</p>
+
+<h3>구현 범위</h3>
+<table>
+  <tr>
+    <th class="c" style="width:11%">구분</th>
+    <th style="width:19%">기능</th>
+    <th style="width:36%">엔드포인트</th>
+    <th>학습 포인트</th>
+  </tr>
+  <tr><td class="c">필수 ①</td><td>날씨별 추천</td><td><code>GET /api/menu/weather/{weather}</code></td><td><code>@PathVariable</code> · 문자열 응답</td></tr>
+  <tr><td class="c">필수 ②</td><td>기분별 추천</td><td><code>GET /api/menu/mood/{mood}</code></td><td>JSON 응답 (DTO 반환)</td></tr>
+  <tr><td class="c">필수 ③</td><td>가격대별 추천</td><td><code>GET /api/menu/price/search</code></td><td><code>@RequestParam</code> · 입력 검증</td></tr>
+  <tr><td class="c">필수 ④</td><td>나만의 추천</td><td><code>GET /api/menu/my/{companion}</code></td><td>추천 기준 직접 설계</td></tr>
+  <tr><td class="c">차별화</td><td>Swagger 문서화</td><td><code>GET /swagger-ui.html</code></td><td><code>@Tag</code> · <code>@Operation</code> · <code>@Parameter</code></td></tr>
+  <tr><td class="c">차별화</td><td>자동 테스트</td><td><code>./gradlew test</code></td><td>MockMvc 10종 검증</td></tr>
+  <tr><td class="c">차별화</td><td>컨테이너 실행</td><td><code>docker run -p 8080:8080</code></td><td>멀티 스테이지 빌드 · 비root 실행</td></tr>
+</table>
+
+<h3>개발 환경</h3>
+<table>
+  <tr><th style="width:22%">구분</th><th style="width:34%">사용 기술</th><th>역할</th></tr>
+  <tr><td>언어 / 런타임</td><td>Java 21 (Eclipse Temurin)</td><td>애플리케이션 및 Docker 런타임</td></tr>
+  <tr><td>웹</td><td>Spring Boot 3.4.5 (Spring MVC)</td><td>내장 Tomcat, 요청 매핑, JSON 직렬화</td></tr>
+  <tr><td>API 문서</td><td>springdoc-openapi 2.8.13</td><td>Swagger UI · <code>/v3/api-docs</code></td></tr>
+  <tr><td>테스트</td><td>JUnit 5 + MockMvc + AssertJ</td><td>상태 코드 · 응답 본문 자동 검증</td></tr>
+  <tr><td>빌드 / 배포</td><td>Gradle 8.14.5 + Docker</td><td>bootJar, 컨테이너 이미지 생성</td></tr>
+</table>
+
+<h3>프로젝트 구조</h3>
+<pre>springboot-menu-recommendation/
+├─ build.gradle
+├─ Dockerfile                                  <span class="cm">← 신규: 멀티 스테이지 빌드</span>
+├─ .dockerignore                               <span class="cm">← 신규</span>
+└─ src/
+   ├─ main/java/com/example/menu/
+   │  ├─ MenuApplication.java
+   │  ├─ config/OpenApiConfig.java             <span class="cm">← 신규: Swagger 문서 정보</span>
+   │  ├─ controller/MenuController.java        <span class="cm">← 수정: API 4개 추가</span>
+   │  ├─ dto/MenuResponse.java
+   │  └─ service/MenuService.java              <span class="cm">← 수정: 추천 로직 추가</span>
+   ├─ main/resources/static/index.html         <span class="cm">← 수정: 화면 확장</span>
+   └─ test/java/com/example/menu/
+      └─ MenuApplicationTests.java             <span class="cm">← 수정: MockMvc 10종</span></pre>
+
+<hr>
+
+<h2>2. 주소 설계와 계층 분리</h2>
+
+<p>이번에 추가한 코드는 예외 없이 <strong>두 군데로 나뉘어</strong> 들어갔습니다.</p>
+
+<pre>브라우저 / Swagger  →  MenuController  →  MenuService
+                       (주소 해석 · 문장 조립)   (메뉴를 고르는 규칙)</pre>
+
+<p><code>MenuService</code>는 HTTP도 주소도 JSON도 모른 채 <strong>메뉴 이름만</strong> 돌려주고,
+<code>MenuController</code>가 그것으로 <strong>문장이나 JSON을 조립</strong>합니다.
+예를 들어 <code>recommendByWeather("rainy")</code>는 <code>"칼국수"</code>만 반환하고,
+<code>"rainy 날씨에 어울리는 메뉴는 칼국수입니다."</code>라는 문장은 Controller가 만듭니다.</p>
+
+<h3>주소가 겹치지 않게 설계하기</h3>
+
+<p>기존에 <code>@GetMapping("/menu/{category}")</code>가 이미 있었고,
+이 매핑은 <code>/menu</code> 뒤의 <strong>한 칸</strong>을 전부 받아 갑니다.
+그래서 가격 검색 주소를 <code>/menu/price</code>로 만들면 어느 메서드가 처리할지 모호해집니다.</p>
+
+<table>
+  <tr><th style="width:40%">주소</th><th class="c" style="width:18%">/menu 뒤 칸 수</th><th>충돌 여부</th></tr>
+  <tr><td><code>/menu/{category}</code></td><td class="c">1칸</td><td class="t-gray">기존 매핑 (기준)</td></tr>
+  <tr><td><code>/menu/weather/{weather}</code></td><td class="c">2칸</td><td>겹치지 않음</td></tr>
+  <tr><td><code>/menu/mood/{mood}</code></td><td class="c">2칸</td><td>겹치지 않음</td></tr>
+  <tr><td><code>/menu/price/search</code></td><td class="c">2칸</td><td>겹치지 않음 <span class="t-gray">(그래서 <code>/search</code>를 붙임)</span></td></tr>
+  <tr><td><code>/menu/my/{companion}</code></td><td class="c">2칸</td><td>겹치지 않음</td></tr>
+</table>
+
+<p>추가한 4개는 모두 두 칸이고, 첫 칸 리터럴(<code>weather</code> · <code>mood</code> ·
+<code>price</code> · <code>my</code>)이 서로 다르며 기존 <code>json</code>과도 달라 서로 간에도 충돌하지 않습니다.</p>
+
+<div class="callout blue">
+  <p>매핑이 충돌하면 앱이 <strong>시작할 때</strong> <code>Ambiguous mapping</code> 오류로 죽습니다.
+  <code>./gradlew test</code>의 컨텍스트 로딩 테스트가 이를 자동으로 잡아 줍니다.</p>
+</div>
+
+<h3>클래스 레벨 경로</h3>
+<p><code>MenuController</code>에는 <code>@RequestMapping("/api")</code>가 붙어 있어,
+메서드의 <code>@GetMapping</code>에는 <code>/api</code>를 빼고 적습니다.</p>
+
+<pre>@RequestMapping("/api")  +  @GetMapping("/menu/weather/{weather}")
+                         =  /api/menu/weather/{weather}</pre>
+
+<hr>
+
+<h2>3. Swagger 전체 화면</h2>
+
+<p>문서 상단의 제목과 설명은 <code>OpenApiConfig</code>에서 직접 지정했습니다.
+springdoc이 Controller를 읽어 엔드포인트 목록은 자동으로 만들어 주지만, 문서 제목은 직접 넣어야 합니다.</p>
+
+<pre><span class="an">@Configuration</span>
+<span class="kw">public class</span> OpenApiConfig {
+    <span class="an">@Bean</span>
+    <span class="kw">public</span> OpenAPI menuOpenAPI() {
+        <span class="kw">return new</span> OpenAPI().info(<span class="kw">new</span> Info()
+                .title(<span class="st">"오늘 뭐 먹지? — 메뉴 추천 API"</span>)
+                .version(<span class="st">"v1.0.0"</span>)
+                .description(<span class="st">"""
+                        Spring Boot 실습용 메뉴 추천 REST API입니다.
+                        - 실습과제 ①~④ (날씨 · 기분 · 가격대 · 함께 먹는 사람)
+                        - ②는 JSON(MenuResponse), 나머지는 문자열로 응답합니다.
+                        - 가격대별 추천은 min &gt; max인 경우 400 Bad Request를 반환합니다.
+                        """</span>));
+    }
+}</pre>
+
+<figure>
+  <div class="shot"><img src="images/08-swagger-list.png" alt="Swagger UI 전체 API 목록" class="tall"></div>
+  <figcaption>Swagger UI — 등록된 API 9종 전체 목록</figcaption>
+</figure>
+
+<hr>
+
+<h2>4. 필수 과제</h2>
+
+<h3>① 날씨별 추천</h3>
+
+<p><code>sunny</code> / <code>rainy</code> / <code>hot</code> / <code>cold</code> 네 가지 날씨에 따라
+다른 메뉴를 추천합니다. 정해진 값이 아니면 안내 문구를 반환합니다.</p>
+
+<pre><span class="kw">public</span> String recommendByWeather(String weather) {
+    <span class="kw">return switch</span> (weather) {
+        <span class="kw">case</span> <span class="st">"sunny"</span> -&gt; <span class="st">"비빔밥"</span>;
+        <span class="kw">case</span> <span class="st">"rainy"</span> -&gt; <span class="st">"칼국수"</span>;
+        <span class="kw">case</span> <span class="st">"hot"</span>   -&gt; <span class="st">"냉면"</span>;
+        <span class="kw">case</span> <span class="st">"cold"</span>  -&gt; <span class="st">"김치찌개"</span>;
+        <span class="kw">default</span> -&gt; NOT_FOUND;
+    };
+}</pre>
+
+<pre><span class="an">@GetMapping</span>(<span class="st">"/menu/weather/{weather}"</span>)
+<span class="kw">public</span> String menuByWeather(<span class="an">@PathVariable</span>(<span class="st">"weather"</span>) String weather) {
+    String menu = menuService.recommendByWeather(weather);
+
+    <span class="kw">if</span> (MenuService.NOT_FOUND.equals(menu)) {
+        <span class="kw">return</span> weather + <span class="st">"에 대한 "</span> + menu + <span class="st">". (sunny, rainy, hot, cold 중에서 골라 주세요)"</span>;
+    }
+    <span class="kw">return</span> weather + <span class="st">" 날씨에 어울리는 메뉴는 "</span> + menu + <span class="st">"입니다."</span>;
+}</pre>
+
+<p>반환 타입이 <code>String</code>이면 Spring이 그 문자열을 그대로 응답 본문으로 내보냅니다
+(<code>Content-Type: text/plain;charset=UTF-8</code>).</p>
+
+<figure>
+  <div class="shot"><img src="images/02-task1-weather.png" alt="rainy 실행 결과"></div>
+  <figcaption><code>weather/rainy</code> — 비 오는 날은 칼국수</figcaption>
+</figure>
+<figure>
+  <div class="shot"><img src="images/14-task1-hot.png" alt="hot 실행 결과"></div>
+  <figcaption><code>weather/hot</code> — 값을 바꾸면 결과가 달라진다</figcaption>
+</figure>
+
+<figure>
+  <div class="shot"><img src="images/09-swagger-task1.png" alt="Swagger에서 과제① 실행" class="tall"></div>
+  <figcaption>Swagger UI에서 직접 실행 — <span class="t-green">200 OK</span></figcaption>
+</figure>
+
+<h3 class="page-break">② 기분별 추천 — JSON 응답</h3>
+
+<p><code>happy</code> / <code>sad</code> / <code>tired</code> / <code>stressed</code>에 따라 추천합니다.
+<strong>다른 과제와 달리</strong> <code>String</code>이 아닌 <code>MenuResponse</code> 객체를 반환하므로
+Spring이 JSON으로 변환합니다.</p>
+
+<pre><span class="an">@GetMapping</span>(<span class="st">"/menu/mood/{mood}"</span>)
+<span class="kw">public</span> MenuResponse menuByMood(<span class="an">@PathVariable</span>(<span class="st">"mood"</span>) String mood) {
+    String menu = menuService.recommendByMood(mood);
+
+    <span class="kw">return new</span> MenuResponse(
+            mood,
+            menu,
+            MenuService.NOT_FOUND.equals(menu)
+                    ? mood + <span class="st">"에 대한 "</span> + menu + <span class="st">". (happy, sad, tired, stressed 중에서 골라 주세요)"</span>
+                    : <span class="st">"기분이 "</span> + mood + <span class="st">"일 땐 "</span> + menu + <span class="st">" 어떠세요?"</span>
+    );
+}</pre>
+
+<p><code>@RestController</code>가 붙어 있으면 <strong>객체를 돌려주는 순간</strong> Spring이 JSON으로 바꿔 내보냅니다.
+따로 변환 코드를 쓰지 않습니다. 이 변환을 담당하는 것이 Jackson이며
+<code>spring-boot-starter-web</code>에 이미 들어 있습니다.</p>
+
+<p><code>MenuResponse</code>는 <code>record</code>입니다. Jackson은 record의 필드 이름을 그대로 JSON 키로 씁니다.</p>
+
+<pre><span class="kw">public record</span> MenuResponse(String category, String menu, String message) { }</pre>
+
+<figure>
+  <div class="shot"><img src="images/03-task2-mood.png" alt="happy 실행 결과"></div>
+  <figcaption><code>mood/happy</code> — message를 문장으로 보여주고 원본 JSON을 함께 표시</figcaption>
+</figure>
+
+<figure>
+  <div class="shot"><img src="images/10-swagger-task2.png" alt="Swagger에서 과제② 실행" class="tall"></div>
+  <figcaption>Swagger 실행 결과 — <code>content-type: application/json</code>, 세 필드가 직렬화됨</figcaption>
+</figure>
+
+<h3 class="page-break">③ 가격대별 추천 — @RequestParam</h3>
+
+<p>앞의 두 과제와 다른 점이 있습니다. 값을 <strong>두 개</strong>, 그것도 주소 경로가 아니라
+<code>?min=5000&amp;max=10000</code> 형태로 받습니다.</p>
+
+<table>
+  <tr><th style="width:24%">구분</th><th style="width:42%">주소 모양</th><th>애노테이션</th></tr>
+  <tr><td>경로의 일부</td><td><code>/api/menu/mood/happy</code></td><td><code>@PathVariable</code></td></tr>
+  <tr><td>질의 문자열</td><td><code>/api/menu/price/search?min=5000&amp;max=10000</code></td><td><code>@RequestParam</code></td></tr>
+</table>
+
+<pre><span class="an">@GetMapping</span>(<span class="st">"/menu/price/search"</span>)
+<span class="kw">public</span> String menuByPrice(<span class="an">@RequestParam</span>(<span class="st">"min"</span>) <span class="kw">int</span> min,
+                          <span class="an">@RequestParam</span>(<span class="st">"max"</span>) <span class="kw">int</span> max) {
+    <span class="kw">if</span> (min &gt; max) {
+        <span class="kw">throw new</span> ResponseStatusException(
+                HttpStatus.BAD_REQUEST,
+                <span class="st">"min("</span> + min + <span class="st">")은 max("</span> + max + <span class="st">")보다 클 수 없습니다."</span>
+        );
+    }
+    String menu = menuService.recommendByPrice(max);
+    <span class="kw">return</span> min + <span class="st">"~"</span> + max + <span class="st">"원 가격대라면 "</span> + menu + <span class="st">" 어떠세요?"</span>;
+}</pre>
+
+<p>파라미터 타입이 <code>String</code>이 아니라 <strong><code>int</code></strong>인 점을 눈여겨봤습니다.
+주소로 들어오는 값은 원래 전부 문자열인데 Spring이 <code>int</code>로 바꿔 줍니다.
+숫자가 아닌 값(<code>?min=abc</code>)이 오면 변환에 실패해 Spring이 <span class="bg-red">자동으로 400</span>을 반환합니다.</p>
+
+<table>
+  <tr><th class="c" style="width:34%">조건</th><th>추천 메뉴</th></tr>
+  <tr><td class="c"><code>max</code> ≤ 6,000원</td><td>김밥</td></tr>
+  <tr><td class="c"><code>max</code> ≤ 12,000원</td><td>돈가스</td></tr>
+  <tr><td class="c">그 외</td><td>소고기 구이</td></tr>
+</table>
+
+<figure>
+  <div class="shot"><img src="images/04-task3-price.png" alt="정상 범위 실행 결과"></div>
+  <figcaption><code>min=5000&amp;max=10000</code> — 12,000원 이하 구간이므로 돈가스</figcaption>
+</figure>
+
+<figure>
+  <div class="shot"><img src="images/11-swagger-task3.png" alt="Swagger에서 과제③ 실행" class="tall"></div>
+  <figcaption>Swagger 실행 결과 — 쿼리 파라미터 두 개가 <code>Request URL</code>에 반영됨</figcaption>
+</figure>
+
+<h3 class="page-break">④ 나만의 추천 — 같이 먹는 사람 기준</h3>
+
+<p>추천 기준을 <strong>"누구와 함께 먹는가"</strong>로 설계했습니다.</p>
+
+<table>
+  <tr><th class="c" style="width:20%">값</th><th style="width:26%">의미</th><th>추천 메뉴</th></tr>
+  <tr><td class="c"><code>solo</code></td><td>혼밥</td><td>라면</td></tr>
+  <tr><td class="c"><code>friend</code></td><td>친구와 함께</td><td>피자</td></tr>
+  <tr><td class="c"><code>family</code></td><td>가족과 함께</td><td>불고기</td></tr>
+  <tr><td class="c">그 외</td><td class="t-gray">정해지지 않은 값</td><td>기존 <code>randomMenu()</code>로 무작위 추천</td></tr>
+</table>
+
+<pre><span class="kw">public</span> String recommendByCompanion(String companion) {
+    <span class="kw">return switch</span> (companion) {
+        <span class="kw">case</span> <span class="st">"solo"</span>   -&gt; <span class="st">"라면"</span>;
+        <span class="kw">case</span> <span class="st">"friend"</span> -&gt; <span class="st">"피자"</span>;
+        <span class="kw">case</span> <span class="st">"family"</span> -&gt; <span class="st">"불고기"</span>;
+        <span class="kw">default</span> -&gt; randomMenu();   <span class="cm">// ← 기존 menus 리스트를 재사용</span>
+    };
+}</pre>
+
+<p>앞의 세 과제와 달리 <code>default</code>에서 안내 문구가 아니라
+<strong>이미 만들어져 있던 <code>randomMenu()</code></strong>를 호출합니다.
+메뉴 목록을 새로 만들지 않고 기존 메서드를 그대로 재사용한 것입니다.</p>
+
+<pre><span class="an">@GetMapping</span>(<span class="st">"/menu/my/{companion}"</span>)
+<span class="kw">public</span> String menuByCompanion(<span class="an">@PathVariable</span>(<span class="st">"companion"</span>) String companion) {
+    String menu = menuService.recommendByCompanion(companion);
+
+    <span class="kw">return switch</span> (companion) {
+        <span class="kw">case</span> <span class="st">"solo"</span>   -&gt; <span class="st">"혼자 먹기 좋은 "</span> + menu + <span class="st">" 어떠세요?"</span>;
+        <span class="kw">case</span> <span class="st">"friend"</span> -&gt; <span class="st">"친구랑 나눠 먹기 좋은 "</span> + menu + <span class="st">" 어떠세요?"</span>;
+        <span class="kw">case</span> <span class="st">"family"</span> -&gt; <span class="st">"가족과 함께라면 "</span> + menu + <span class="st">" 어떠세요?"</span>;
+        <span class="kw">default</span> -&gt; <span class="st">"오늘은 "</span> + menu + <span class="st">" 어떠세요?"</span>;
+    };
+}</pre>
+
+<figure>
+  <div class="shot"><img src="images/05-task4-companion.png" alt="solo 실행 결과"></div>
+  <figcaption><code>my/solo</code> — 혼밥 추천</figcaption>
+</figure>
+<figure>
+  <div class="shot"><img src="images/15-task4-family.png" alt="family 실행 결과"></div>
+  <figcaption><code>my/family</code> — 조건에 따라 결과가 달라진다</figcaption>
+</figure>
+
+<figure>
+  <div class="shot"><img src="images/13-swagger-task4.png" alt="Swagger에서 과제④ 실행" class="tall"></div>
+  <figcaption>Swagger 실행 결과 — <code>my/solo</code></figcaption>
+</figure>
+
+<hr>
+
+<h2>5. 차별화 기능</h2>
+
+<h3>5-1. 잘못된 입력의 400 처리</h3>
+
+<p><code>min=20000&amp;max=5000</code>은 <strong>서버 잘못이 아니라 요청 잘못</strong>입니다.
+이럴 때 200 OK에 "잘못됐다"고 적어 보내면 프로그램은 성공과 실패를 구분할 수 없습니다.
+HTTP 상태 코드로 알려 주는 것이 REST의 방식입니다.</p>
+
+<table>
+  <tr><th style="width:46%">검증 조건</th><th>처리 결과</th></tr>
+  <tr><td><code>min &gt; max</code></td><td><span class="bg-red"><strong>400</strong></span> Bad Request + 안내 메시지</td></tr>
+  <tr><td><code>min</code> 또는 <code>max</code>가 숫자가 아님</td><td><span class="bg-red"><strong>400</strong></span> Bad Request <span class="t-gray">(Spring 자동 변환 실패)</span></td></tr>
+  <tr><td>파라미터 누락</td><td><span class="bg-red"><strong>400</strong></span> Bad Request <span class="t-gray">(required 기본값)</span></td></tr>
+  <tr><td><code>min ≤ max</code></td><td><span class="bg-green"><strong>200</strong></span> 정상 추천 결과 반환</td></tr>
+</table>
+
+<div class="callout yellow">
+  <p><strong>설정이 하나 더 필요했습니다</strong> — Spring Boot 2.3부터
+  <code>server.error.include-message</code>의 기본값이 <code>never</code>입니다.
+  이 상태에서는 <code>ResponseStatusException</code>에 적은 안내 문구가 응답 본문에서
+  <strong>빠진 채</strong> 상태 코드만 나갑니다.</p>
+</div>
+
+<pre>server.error.include-message=always</pre>
+
+<pre><span class="cm">// 설정 전 (기본값 never)</span>
+{"timestamp":"…","status":400,"error":"Bad Request","path":"/api/menu/price/search"}
+
+<span class="cm">// 설정 후 (always)</span>
+{"timestamp":"…","status":400,"error":"Bad Request",
+ "message":"min(20000)은 max(5000)보다 클 수 없습니다.","path":"/api/menu/price/search"}</pre>
+
+<figure>
+  <div class="shot"><img src="images/12-swagger-task3-400.png" alt="Swagger에서 400 확인" class="tall"></div>
+  <figcaption><code>min=20000, max=5000</code> — <span class="t-red">400 Bad Request</span>와 안내 메시지가 함께 반환됨</figcaption>
+</figure>
+
+<figure>
+  <div class="shot"><img src="images/07-fail-bad-range.png" alt="화면에서 400 표시"></div>
+  <figcaption>화면에서도 상태 코드와 응답 본문을 함께 표시하도록 구현</figcaption>
+</figure>
+
+<h3>5-2. 응답 문장 다듬기</h3>
+
+<p>처음 구현했을 때 없는 값을 넣으면 이런 응답이 나왔습니다.</p>
+
+<pre>없는날씨 날씨에 어울리는 메뉴는 추천 가능한 메뉴가 없습니다입니다.</pre>
+
+<p><code>"…없습니다"</code>와 <code>"입니다."</code>가 이어 붙어 말이 되지 않습니다.
+문장을 조립하기 <strong>전에</strong> "메뉴를 찾았는지"를 먼저 확인해야 했습니다.
+그래서 실패 문구를 <code>MenuService</code>의 상수로 분리했습니다.</p>
+
+<pre><span class="kw">public static final</span> String NOT_FOUND = <span class="st">"추천 가능한 메뉴가 없습니다"</span>;</pre>
+
+<ul>
+  <li><strong>실패 문구 일원화</strong> — 같은 문자열을 Service와 Controller 두 곳에 각각 적어 두면,
+      나중에 문구를 고칠 때 한쪽만 고치는 실수가 납니다. 그러면 <code>if</code> 조건이 조용히 어긋납니다.</li>
+  <li><strong><code>NOT_FOUND.equals(menu)</code> 순서</strong> — <code>menu</code>가 <code>null</code>이면
+      <code>menu.equals(...)</code>는 <code>NullPointerException</code>이 납니다.
+      확실히 <code>null</code>이 아닌 쪽을 앞에 두었습니다.</li>
+</ul>
+
+<figure>
+  <div class="shot"><img src="images/06-fail-unknown-weather.png" alt="없는 값 안내 문구"></div>
+  <figcaption>없는 값을 넣어도 문장이 자연스럽고, 사용 가능한 값을 함께 안내한다</figcaption>
+</figure>
+
+<h3>5-3. 화면(index.html) 확장</h3>
+
+<p>기본 제공 화면은 과제별 버튼이 하나씩뿐이라 값을 바꿔 볼 수 없었습니다. 다음을 추가했습니다.</p>
+
+<ul>
+  <li><strong>값 변형 버튼</strong> — 각 과제의 다른 입력값(맑은 날 · 더운 날 · 추운 날, 가격 3구간, 동행 3종)</li>
+  <li><strong>실패 케이스 버튼</strong> — 없는 값(<code>snowy</code> · <code>angry</code> · <code>pet</code>)과
+      잘못된 가격 범위를 회색 버튼으로 구분</li>
+  <li><strong>JSON 응답 표시 개선</strong> — <code>message</code>를 문장으로 먼저 보여주고 원본 JSON을 함께 표시</li>
+  <li><strong>오류 본문 표시</strong> — 기존 코드는 <code>!response.ok</code>에서 바로 예외를 던져
+      <code>오류: HTTP 400</code>만 보였습니다. 상태 코드와 <strong>응답 본문을 함께</strong> 보여주도록 수정</li>
+</ul>
+
+<pre><span class="cm">// 400 같은 실패 응답도 본문을 그대로 보여준다.</span>
+<span class="kw">if</span> (!response.ok) {
+    <span class="kw">const</span> reason = isJson &amp;&amp; body.message ? body.message : <span class="st">""</span>;
+    result.textContent =
+        <span class="st">`오류: HTTP ${response.status} ${response.statusText}\n`</span>
+        + <span class="st">`요청: GET ${url}\n\n`</span>
+        + (reason ? <span class="st">`${reason}\n\n`</span> : <span class="st">""</span>)
+        + (isJson ? <span class="st">`(응답 본문)\n${JSON.stringify(body, null, 2)}`</span> : body);
+    <span class="kw">return</span>;
+}</pre>
+
+<figure>
+  <div class="shot"><img src="images/01-home-full.png" alt="확장한 테스트 화면 전체" class="tall"></div>
+  <figcaption>확장한 통합 테스트 화면 — 과제별 값 변형 버튼과 실패 케이스 버튼</figcaption>
+</figure>
+
+<h3>5-4. Swagger 문서화</h3>
+
+<p>엔드포인트 목록만 나오는 기본 상태에서, 각 API의 목적과 입력 예시까지 문서에 담았습니다.</p>
+
+<pre><span class="an">@Tag</span>(name = <span class="st">"메뉴 추천"</span>, description = <span class="st">"상황에 맞는 메뉴를 추천합니다."</span>)
+<span class="kw">public class</span> MenuController {
+
+    <span class="an">@Operation</span>(summary = <span class="st">"[과제③] 가격대별 추천 (@RequestParam)"</span>,
+            description = <span class="st">"값을 경로가 아니라 쿼리 파라미터로 두 개 받습니다. …"</span>)
+    <span class="an">@GetMapping</span>(<span class="st">"/menu/price/search"</span>)
+    <span class="kw">public</span> String menuByPrice(
+            <span class="an">@Parameter</span>(description = <span class="st">"최소 금액"</span>, example = <span class="st">"5000"</span>) <span class="an">@RequestParam</span>(<span class="st">"min"</span>) <span class="kw">int</span> min,
+            <span class="an">@Parameter</span>(description = <span class="st">"최대 금액"</span>, example = <span class="st">"10000"</span>) <span class="an">@RequestParam</span>(<span class="st">"max"</span>) <span class="kw">int</span> max) { … }</pre>
+
+<p><code>example</code>을 지정해 두면 Swagger UI에서 <span class="mono">Try it out</span>을 눌렀을 때
+입력칸이 <strong>예시 값으로 미리 채워집니다</strong>. 앞의 실행 화면들이 모두 그 상태입니다.</p>
+
+<hr>
+
+<h2>6. 자동 테스트</h2>
+
+<p>MockMvc로 상태 코드 · 응답 본문 · JSON 경로를 자동 검증했습니다.
+서버를 직접 띄우지 않고 <code>DispatcherServlet</code>에 가짜 요청을 보내 응답을 확인합니다.
+화면을 눌러 보는 수동 확인과 달리, 코드를 고친 뒤에도 같은 검증을 반복할 수 있습니다.</p>
+
+<pre><span class="an">@SpringBootTest</span>
+<span class="an">@AutoConfigureMockMvc</span>
+<span class="kw">class</span> MenuApplicationTests {
+
+    <span class="an">@Autowired</span>
+    <span class="kw">private</span> MockMvc mockMvc;
+
+    <span class="an">@Test</span>
+    <span class="an">@DisplayName</span>(<span class="st">"과제② 기분별 추천 - MenuResponse가 JSON 세 필드로 직렬화된다"</span>)
+    <span class="kw">void</span> moodApiReturnsJson() <span class="kw">throws</span> Exception {
+        mockMvc.perform(get(<span class="st">"/api/menu/mood/happy"</span>))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath(<span class="st">"$.category"</span>).value(<span class="st">"happy"</span>))
+                .andExpect(jsonPath(<span class="st">"$.menu"</span>).value(<span class="st">"치킨"</span>))
+                .andExpect(jsonPath(<span class="st">"$.message"</span>).exists());
+    }
+}</pre>
+
+<table>
+  <tr><th style="width:48%">테스트 메서드</th><th>검증 내용</th></tr>
+  <tr><td><code>contextLoads</code></td><td>Spring Container 기동 · 매핑 충돌 여부</td></tr>
+  <tr><td><code>weatherApiReturnsDifferentMenus</code></td><td>과제① 날씨에 따라 다른 문자열 반환</td></tr>
+  <tr><td><code>weatherApiGuidesOnUnknownValue</code></td><td>과제① 정해지지 않은 값의 안내 문구</td></tr>
+  <tr><td><code>moodApiReturnsJson</code></td><td>과제② JSON 세 필드 직렬화</td></tr>
+  <tr><td><code>priceApiSplitsByMax</code></td><td>과제③ 가격 3구간이 각각 다른 메뉴 반환</td></tr>
+  <tr><td><code>priceApiRejectsInvalidRange</code></td><td>과제③ <code>min &gt; max</code> → 400</td></tr>
+  <tr><td><code>priceApiRejectsNonNumericInput</code></td><td>과제③ 숫자가 아닌 입력 → 400</td></tr>
+  <tr><td><code>companionApiReturnsPersonalizedMenu</code></td><td>과제④ 동행별 결과 분기</td></tr>
+  <tr><td><code>existingApisStillWork</code></td><td>기존 API 회귀 확인</td></tr>
+  <tr><td><code>openApiDocumentationExposesAssignmentApis</code></td><td>OpenAPI 문서에 과제 API 4종 노출</td></tr>
+</table>
+
+<pre class="term"><span class="prompt">$ ./gradlew clean test</span>
+
+&gt; Task :clean
+&gt; Task :compileJava
+&gt; Task :compileTestJava
+&gt; Task :test
+
+BUILD SUCCESSFUL in 2s
+5 actionable tasks: 5 executed
+
+<span class="dim">────────────────────────────────────────────</span>
+  총 10개 / 실패 0 / 건너뜀 0 / 0.47초</pre>
+
+<hr>
+
+<h2>7. Docker</h2>
+
+<p>멀티 스테이지 빌드로 빌드 환경과 실행 환경을 분리했습니다.
+빌드에는 JDK가 필요하지만 실행에는 JRE면 충분하므로, 최종 이미지에는 컴파일러를 넣지 않습니다.</p>
+
+<pre><span class="kw">FROM</span> eclipse-temurin:21-jdk <span class="kw">AS</span> builder          <span class="cm"># 1단계: jar 생성</span>
+<span class="kw">WORKDIR</span> /build
+<span class="kw">COPY</span> gradlew ./
+<span class="kw">COPY</span> gradle gradle
+<span class="kw">COPY</span> build.gradle settings.gradle ./
+<span class="kw">RUN</span> chmod +x gradlew &amp;&amp; ./gradlew dependencies --no-daemon
+<span class="kw">COPY</span> src src
+<span class="kw">RUN</span> ./gradlew bootJar --no-daemon -x test
+
+<span class="kw">FROM</span> eclipse-temurin:21-jre                     <span class="cm"># 2단계: 실행만</span>
+<span class="kw">WORKDIR</span> /app
+<span class="kw">RUN</span> useradd --create-home --shell /bin/bash appuser
+<span class="kw">USER</span> appuser
+<span class="kw">COPY</span> --from=builder /build/build/libs/*.jar app.jar
+<span class="kw">EXPOSE</span> 8080
+<span class="kw">ENTRYPOINT</span> ["java", "-jar", "app.jar"]</pre>
+
+<p>그 외 적용한 것:</p>
+<ul>
+  <li><strong>레이어 캐시 최적화</strong> — 의존성 파일을 소스보다 <strong>먼저</strong> 복사해,
+      소스만 고쳤을 때 재빌드가 빠르도록 구성</li>
+  <li><strong>비root 실행</strong> — <code>appuser</code> 계정으로 실행</li>
+  <li><strong><code>.dockerignore</code></strong> — <code>build/</code>, <code>.gradle/</code>,
+      <code>bin/</code>, <code>.git/</code> 제외</li>
+</ul>
+
+<pre class="term"><span class="prompt">$ docker build -t menu-recommendation:latest .</span>
+=&gt; naming to docker.io/library/menu-recommendation:latest    done
+
+<span class="prompt">$ docker images menu-recommendation</span>
+REPOSITORY            TAG       SIZE
+menu-recommendation   latest    567MB
+
+<span class="prompt">$ docker run -d --name menu-app -p 8080:8080 menu-recommendation:latest</span>
+<span class="prompt">$ docker ps</span>
+NAMES      IMAGE                        STATUS         PORTS
+menu-app   menu-recommendation:latest   Up 7 minutes   0.0.0.0:8080-&gt;8080/tcp
+
+<span class="prompt">$ docker logs menu-app</span>
+INFO 1 --- [main] com.example.menu.MenuApplication
+    : Starting MenuApplication v0.0.1-SNAPSHOT using Java 21.0.11
+      with PID 1 (/app/app.jar started by appuser in /app)
+INFO 1 --- [main] o.s.b.w.embedded.tomcat.TomcatWebServer
+    : Tomcat started on port 8080 (http) with context path '/'
+INFO 1 --- [main] com.example.menu.MenuApplication
+    : Started MenuApplication in 0.733 seconds</pre>
+
+<div class="callout green">
+  <p>이 보고서의 <strong>모든 Swagger · 화면 캡처는 위 Docker 컨테이너</strong>
+  (<code>http://localhost:8080</code>)에서 실행한 결과입니다.
+  즉 이미지 빌드부터 API 동작까지 하나의 흐름으로 검증되었습니다.</p>
+</div>
+
+<hr>
+
+<h2>8. 트러블슈팅 기록</h2>
+
+<h3>① 400 응답에 메시지가 실리지 않음</h3>
+<p><code>ResponseStatusException</code>에 안내 문구를 적었는데 응답 본문에 나타나지 않았습니다.
+Spring Boot 2.3부터 <code>server.error.include-message</code>의 기본값이 <code>never</code>이기 때문이었고,
+<code>always</code>로 바꿔 해결했습니다.
+에러 메시지에 내부 정보가 새어 나가는 것을 막기 위한 안전 장치이므로,
+실제 서비스에서는 켤지 말지 신중히 판단해야 한다는 점도 함께 알게 되었습니다.</p>
+
+<h3>② MockMvc에서 400 응답 본문이 비어 있음</h3>
+<p><code>jsonPath("$.message")</code> 검증이 실패했습니다.
+MockMvc는 서블릿 컨테이너의 <code>/error</code> 포워딩을 거치지 않아 에러 본문이 생성되지 않았습니다.
+상태 코드와 함께 <strong>실제로 던져진 예외와 그 사유</strong>를 검증하는 방식으로 바꾸었고,
+본문에 메시지가 실리는지는 실행 중인 서버에서 따로 확인했습니다.</p>
+
+<pre>.andExpect(status().isBadRequest())
+.andExpect(result -&gt; {
+    Exception thrown = result.getResolvedException();
+    assertThat(thrown).isInstanceOf(ResponseStatusException.<span class="kw">class</span>);
+    assertThat(((ResponseStatusException) thrown).getReason())
+            .contains(<span class="st">"min(20000)"</span>, <span class="st">"max(5000)"</span>, <span class="st">"클 수 없습니다"</span>);
+});</pre>
+
+<h3>③ 안내 문구가 어색하게 이어 붙음</h3>
+<p><code>"…없습니다" + "입니다."</code> 형태로 문장이 겹쳤습니다.
+실패 문구를 <code>NOT_FOUND</code> 상수로 분리하고, 문장을 조립하기 전에 분기하도록 수정했습니다.</p>
+
+<hr>
+
+<h2>9. 마무리</h2>
+
+<h3>배운 것</h3>
+<ul>
+  <li><code>@PathVariable</code>과 <code>@RequestParam</code>의 적용 상황을 구분하고 실제 엔드포인트에 사용했다.</li>
+  <li>Controller는 요청 매핑과 응답 조립, Service는 추천 규칙이라는 계층별 책임을 코드로 분리했다.</li>
+  <li><strong>반환 타입 하나로 문자열 응답과 JSON 응답이 갈린다</strong>는 점을
+      <code>record</code> DTO와 Jackson 직렬화로 확인했다.</li>
+  <li>기존 <code>/menu/{category}</code> 매핑과 충돌하지 않도록 주소를 설계하는 과정을 거쳤다.</li>
+  <li>잘못된 입력을 HTTP 400으로 처리하고, <code>server.error.include-message</code> 설정까지 확인했다.</li>
+  <li>Swagger · MockMvc · Docker로 API의 문서화 · 검증 · 실행 환경을 함께 완성했다.</li>
+</ul>
+
+<h3>요구사항 충족도</h3>
+<table>
+  <tr><th style="width:28%">평가 항목</th><th class="c" style="width:12%">결과</th><th>근거</th></tr>
+  <tr><td>필수 API 4종</td><td class="c">완료</td><td>날씨 · 기분 · 가격대 · 동행 실행 화면과 자동 테스트</td></tr>
+  <tr><td>API 문서화</td><td class="c">완료</td><td>Swagger UI 및 <code>/v3/api-docs</code>, 엔드포인트 9종 노출</td></tr>
+  <tr><td>입력 검증</td><td class="c">완료</td><td><code>min &gt; max</code> · 숫자 아님 · 파라미터 누락 3가지 모두 400</td></tr>
+  <tr><td>화면 확장</td><td class="c">완료</td><td>값 변형 · 실패 케이스 버튼, 오류 본문 표시</td></tr>
+  <tr><td>자동 테스트</td><td class="c">완료</td><td>MockMvc 10종, BUILD SUCCESSFUL</td></tr>
+  <tr><td>컨테이너 실행</td><td class="c">완료</td><td>멀티 스테이지 Dockerfile, 8080 포트 실행</td></tr>
+</table>
+
+<h3>더 해볼 것</h3>
+<ul>
+  <li>날씨 · 기분 값을 <code>enum</code>으로 바꾸면 오타를 컴파일 단계에서 잡을 수 있다.</li>
+  <li>추천 규칙이 코드에 하드코딩되어 있으므로, <code>Map</code>이나 설정 파일로 분리하면
+      코드 수정 없이 메뉴를 바꿀 수 있다.</li>
+  <li>현재는 조건 하나만 반영하므로, 날씨 · 기분 · 예산을 동시에 고려한 종합 추천으로 확장할 수 있다.</li>
+  <li>입력 검증을 조건문으로 직접 처리하고 있으므로,
+      <code>spring-boot-starter-validation</code>과 DTO 검증을 적용할 수 있다.</li>
+  <li>기존 <code>menuByCategory</code>에는 아직 5-2의 문장 겹침 문제가 남아 있어 동일하게 정리할 수 있다.</li>
+</ul>
+
+</body>
+</html>
