@@ -37,15 +37,29 @@ http://localhost:8080
 
 API:
 
+기본 API:
+
 ```text
 GET http://localhost:8080/api/hello/홍길동
 GET http://localhost:8080/api/menu
 GET http://localhost:8080/api/menu/random
-GET http://localhost:8080/api/menu/한식
-GET http://localhost:8080/api/menu/중식
-GET http://localhost:8080/api/menu/일식
-GET http://localhost:8080/api/menu/json/한식
+GET http://localhost:8080/api/menu/korean
+GET http://localhost:8080/api/menu/chinese
+GET http://localhost:8080/api/menu/japanese
+GET http://localhost:8080/api/menu/json/korean
 ```
+
+실습과제로 추가한 API:
+
+```text
+GET http://localhost:8080/api/menu/weather/{weather}   # sunny | rainy | hot | cold
+GET http://localhost:8080/api/menu/mood/{mood}         # happy | sad | tired | stressed
+GET http://localhost:8080/api/menu/price/search?min=5000&max=10000
+GET http://localhost:8080/api/menu/my/{companion}      # solo | friend | family
+```
+
+네 개 모두 문자열로 응답합니다. JSON 응답 예시는 기존 `/api/menu/json/{category}`를 참고하세요.
+`/api/menu/price/search`에 `min > max`인 값을 주면 400 Bad Request가 반환됩니다.
 
 ## 학습 포인트
 
