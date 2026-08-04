@@ -11,3 +11,4 @@ AI 서비스를 위한 SW 기초 Full-stack Engineering 과정의 일자별 실�
 | Day 10 | 7/28 | Linear Regression — 부동산 가격 회귀분석 | [Day10 (7_28)](<Day10 (7_28)>) |
 | Day 13 | 7/31 | Self-Attention / Transformer 프로토타입 | [Day13 (7_31)](<Day13 (7_31)>) |
 | Day 14 | 8/3 | Java · SpringBoot · Rest API 구현 | [Day14 (8_3)](<Day14 (8_3)>) |
+| Day 15 | 8/4 | Java · SpringBoot · Rest API 구현 | [Day15 (8_4)](<Day15 (8_4)>) |
