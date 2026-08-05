@@ -33,5 +33,9 @@ application-local-secret.yml
 !.env.example
 local-uploads/
 
+# === 실습 배포 압축파일 ===
+# 압축을 푼 소스를 그대로 추적하므로 원본 zip은 제외한다
+*.zip
+
 # === macOS ===
 .DS_Store
