@@ -12,3 +12,4 @@ AI 서비스를 위한 SW 기초 Full-stack Engineering 과정의 일자별 실�
 | Day 13 | 7/31 | Self-Attention / Transformer 프로토타입 | [Day13 (7_31)](<Day13 (7_31)>) |
 | Day 14 | 8/3 | Java · SpringBoot · Rest API 구현 | [Day14 (8_3)](<Day14 (8_3)>) |
 | Day 15 | 8/4 | Java · SpringBoot · Rest API 구현 | [Day15 (8_4)](<Day15 (8_4)>) |
+| Day 16 | 8/5 | Java · SpringBoot · Rest API 구현 | [Day16 (8_5)](<Day16 (8_5)>) |

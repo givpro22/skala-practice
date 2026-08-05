@@ -1,0 +1,37 @@
+# === Gradle ===
+.gradle/
+build/
+
+# === Java 빌드 산출물 ===
+bin/
+out/
+target/
+*.class
+*.jar
+# Gradle wrapper jar는 커밋 대상 (프로젝트 어느 depth에 있든)
+!**/gradle/wrapper/*.jar
+*.war
+*.ear
+*.log
+
+# === IDE ===
+.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/
+.settings/
+.classpath
+.project
+.factorypath
+
+# === Spring Boot 로컬 설정 / 비밀정보 ===
+application-local-secret.yml
+*.env
+.env
+.env.*
+!.env.example
+local-uploads/
+
+# === macOS ===
+.DS_Store
