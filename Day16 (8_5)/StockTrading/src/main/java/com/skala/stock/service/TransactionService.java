@@ -5,6 +5,8 @@ import com.skala.stock.dto.TransactionDto;
 import com.skala.stock.entity.Stock;
 import com.skala.stock.entity.Transaction;
 import com.skala.stock.entity.User;
+import com.skala.stock.exception.BusinessRuleException;
+import com.skala.stock.exception.ResourceNotFoundException;
 import com.skala.stock.repository.StockRepository;
 import com.skala.stock.repository.TransactionRepository;
 import com.skala.stock.repository.UserRepository;
@@ -28,9 +30,9 @@ public class TransactionService {
     @Transactional
     public TransactionDto executeTrade(TradeRequestDto tradeRequest) {
         User user = userRepository.findById(tradeRequest.getUserId())
-                .orElseThrow(() -> new RuntimeException("사용자를 찾을 수 없습니다: " + tradeRequest.getUserId()));
+                .orElseThrow(() -> new ResourceNotFoundException("사용자를 찾을 수 없습니다: " + tradeRequest.getUserId()));
         Stock stock = stockRepository.findById(tradeRequest.getStockId())
-                .orElseThrow(() -> new RuntimeException("주식을 찾을 수 없습니다: " + tradeRequest.getStockId()));
+                .orElseThrow(() -> new ResourceNotFoundException("주식을 찾을 수 없습니다: " + tradeRequest.getStockId()));
 
         Long currentPrice = stock.getCurrentPrice();
         Long totalAmount = currentPrice * tradeRequest.getQuantity();
@@ -38,7 +40,7 @@ public class TransactionService {
         if (tradeRequest.getType() == Transaction.TransactionType.BUY) {
             // 매수: 잔액 확인
             if (user.getBalance() < totalAmount) {
-                throw new RuntimeException("잔액이 부족합니다. 필요 금액: " + totalAmount + ", 보유 금액: " + user.getBalance());
+                throw new BusinessRuleException("잔액이 부족합니다. 필요 금액: " + totalAmount + ", 보유 금액: " + user.getBalance());
             }
             // 잔액 차감
             user.setBalance(user.getBalance() - totalAmount);
@@ -48,7 +50,7 @@ public class TransactionService {
             // 매도: 보유 수량 확인
             var portfolio = portfolioService.getPortfolio(user.getId(), stock.getId());
             if (portfolio == null || portfolio.getQuantity() < tradeRequest.getQuantity()) {
-                throw new RuntimeException("보유 수량이 부족합니다. 보유 수량: " + (portfolio != null ? portfolio.getQuantity() : 0) + ", 매도 수량: " + tradeRequest.getQuantity());
+                throw new BusinessRuleException("보유 수량이 부족합니다. 보유 수량: " + (portfolio != null ? portfolio.getQuantity() : 0) + ", 매도 수량: " + tradeRequest.getQuantity());
             }
             // 잔액 증가
             user.setBalance(user.getBalance() + totalAmount);
@@ -86,7 +88,7 @@ public class TransactionService {
 
     public TransactionDto getTransactionById(Long id) {
         Transaction transaction = transactionRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("거래를 찾을 수 없습니다: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("거래를 찾을 수 없습니다: " + id));
         return convertToDto(transaction);
     }
 

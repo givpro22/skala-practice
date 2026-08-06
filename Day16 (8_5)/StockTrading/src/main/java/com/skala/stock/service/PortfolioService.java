@@ -4,6 +4,7 @@ import com.skala.stock.dto.PortfolioDto;
 import com.skala.stock.entity.Portfolio;
 import com.skala.stock.entity.Stock;
 import com.skala.stock.entity.User;
+import com.skala.stock.exception.ResourceNotFoundException;
 import com.skala.stock.repository.PortfolioRepository;
 import com.skala.stock.repository.StockRepository;
 import com.skala.stock.repository.UserRepository;
@@ -32,16 +33,16 @@ public class PortfolioService {
 
     public PortfolioDto getPortfolio(Long userId, Long stockId) {
         Portfolio portfolio = portfolioRepository.findByUserIdAndStockId(userId, stockId)
-                .orElseThrow(() -> new RuntimeException("포트폴리오를 찾을 수 없습니다"));
+                .orElseThrow(() -> new ResourceNotFoundException("포트폴리오를 찾을 수 없습니다"));
         return convertToDto(portfolio);
     }
 
     @Transactional
     public PortfolioDto addToPortfolio(Long userId, Long stockId, Long quantity, Long price) {
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("사용자를 찾을 수 없습니다: " + userId));
+                .orElseThrow(() -> new ResourceNotFoundException("사용자를 찾을 수 없습니다: " + userId));
         Stock stock = stockRepository.findById(stockId)
-                .orElseThrow(() -> new RuntimeException("주식을 찾을 수 없습니다: " + stockId));
+                .orElseThrow(() -> new ResourceNotFoundException("주식을 찾을 수 없습니다: " + stockId));
 
         Portfolio existingPortfolio = portfolioRepository.findByUserIdAndStockId(userId, stockId)
                 .orElse(null);
@@ -72,7 +73,7 @@ public class PortfolioService {
     @Transactional
     public PortfolioDto updatePortfolio(Long userId, Long stockId, Long quantity) {
         Portfolio portfolio = portfolioRepository.findByUserIdAndStockId(userId, stockId)
-                .orElseThrow(() -> new RuntimeException("포트폴리오를 찾을 수 없습니다"));
+                .orElseThrow(() -> new ResourceNotFoundException("포트폴리오를 찾을 수 없습니다"));
 
         if (quantity <= 0) {
             portfolioRepository.delete(portfolio);
@@ -87,7 +88,7 @@ public class PortfolioService {
     @Transactional
     public void removeFromPortfolio(Long userId, Long stockId) {
         Portfolio portfolio = portfolioRepository.findByUserIdAndStockId(userId, stockId)
-                .orElseThrow(() -> new RuntimeException("포트폴리오를 찾을 수 없습니다"));
+                .orElseThrow(() -> new ResourceNotFoundException("포트폴리오를 찾을 수 없습니다"));
         portfolioRepository.delete(portfolio);
     }
 
