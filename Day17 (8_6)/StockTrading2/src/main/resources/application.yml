@@ -40,8 +40,30 @@ springdoc:
   swagger-ui:
     path: /swagger-ui.html
 
+# Actuator — 운영 중 애플리케이션 상태를 확인하는 엔드포인트
+# 기본값은 health 만 노출되므로 실습에 필요한 것을 골라 연다.
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, info, metrics, env, beans, mappings
+  endpoint:
+    health:
+      show-details: always   # 디스크·DB 등 하위 구성요소 상태까지 표시
+  info:
+    env:
+      enabled: true
+
+info:
+  app:
+    name: SKALA Stock Trading API (Day17)
+    description: 주식 거래 분석 API — JPA + MyBatis · AOP · Actuator
+    version: 0.0.1-SNAPSHOT
+
 server:
   port: 8080
+  error:
+    include-message: always
 
 logging:
   level:

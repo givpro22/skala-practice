@@ -26,6 +26,12 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-web'
     implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
     implementation 'org.springframework.boot:spring-boot-starter-validation'
+
+    // Actuator — 애플리케이션 상태·정보 확인용 운영 엔드포인트
+    implementation 'org.springframework.boot:spring-boot-starter-actuator'
+
+    // AOP — 실행 시간 측정 · 거래 감사 로그를 횡단 관심사로 분리
+    implementation 'org.springframework.boot:spring-boot-starter-aop'
     
     // MyBatis
     implementation 'org.mybatis.spring.boot:mybatis-spring-boot-starter:3.0.3'

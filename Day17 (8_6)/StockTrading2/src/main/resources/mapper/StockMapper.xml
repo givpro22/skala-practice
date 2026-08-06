@@ -1,6 +1,87 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<!--
+  집계 쿼리 모음.
+
+  application.yml 에 map-underscore-to-camel-case: true 가 있어
+  stock_code → stockCode 처럼 자동으로 매핑된다.
+-->
 <mapper namespace="com.skala.stock.mapper.StockMapper">
-    <!-- StockMapper의 모든 쿼리가 제거되었습니다. -->
-    <!-- 교육생 실습을 위해 이 매퍼는 삭제되었습니다. -->
+
+    <!-- 종목별 매수/매도 집계.
+         CASE WHEN 으로 한 번의 스캔에서 매수·매도를 각각 더한다. -->
+    <select id="selectTransactionStatistics"
+            resultType="com.skala.stock.mapper.TransactionStatisticsDto">
+        SELECT
+            s.code AS stock_code,
+            s.name AS stock_name,
+            COALESCE(SUM(CASE WHEN t.type = 'BUY'  THEN t.quantity     ELSE 0 END), 0) AS total_buy_quantity,
+            COALESCE(SUM(CASE WHEN t.type = 'SELL' THEN t.quantity     ELSE 0 END), 0) AS total_sell_quantity,
+            COALESCE(SUM(CASE WHEN t.type = 'BUY'  THEN t.quantity     ELSE -t.quantity END), 0) AS net_quantity,
+            COALESCE(SUM(CASE WHEN t.type = 'BUY'  THEN t.total_amount ELSE 0 END), 0) AS total_buy_amount,
+            COALESCE(SUM(CASE WHEN t.type = 'SELL' THEN t.total_amount ELSE 0 END), 0) AS total_sell_amount,
+            COALESCE(SUM(CASE WHEN t.type = 'SELL' THEN t.total_amount ELSE -t.total_amount END), 0) AS net_amount
+        FROM transactions t
+        JOIN stocks s ON s.id = t.stock_id
+        WHERE t.user_id = #{userId}
+        GROUP BY s.code, s.name
+        ORDER BY s.code
+    </select>
+
+    <!-- 일별 거래 집계. 날짜만 잘라 GROUP BY 한다. -->
+    <select id="selectDailyTrades" resultType="com.skala.stock.mapper.DailyTradeDto">
+        SELECT
+            FORMATDATETIME(t.transaction_date, 'yyyy-MM-dd') AS trade_date,
+            COUNT(*) AS trade_count,
+            COALESCE(SUM(CASE WHEN t.type = 'BUY'  THEN t.quantity     ELSE 0 END), 0) AS buy_quantity,
+            COALESCE(SUM(CASE WHEN t.type = 'SELL' THEN t.quantity     ELSE 0 END), 0) AS sell_quantity,
+            COALESCE(SUM(CASE WHEN t.type = 'BUY'  THEN t.total_amount ELSE 0 END), 0) AS buy_amount,
+            COALESCE(SUM(CASE WHEN t.type = 'SELL' THEN t.total_amount ELSE 0 END), 0) AS sell_amount,
+            COALESCE(SUM(CASE WHEN t.type = 'SELL' THEN t.total_amount ELSE -t.total_amount END), 0) AS net_amount
+        FROM transactions t
+        WHERE t.user_id = #{userId}
+        GROUP BY FORMATDATETIME(t.transaction_date, 'yyyy-MM-dd')
+        ORDER BY trade_date DESC
+    </select>
+
+    <!-- 보유 주식의 현재 평가액 합계 (수량 × 현재가) -->
+    <select id="selectHoldingValue" resultType="java.lang.Long">
+        SELECT COALESCE(SUM(p.quantity * s.current_price), 0)
+        FROM portfolios p
+        JOIN stocks s ON s.id = p.stock_id
+        WHERE p.user_id = #{userId}
+    </select>
+
+    <!-- 보유 주식의 매입 원가 합계 (수량 × 평균 매수가) -->
+    <select id="selectHoldingCost" resultType="java.lang.Long">
+        SELECT COALESCE(SUM(p.quantity * p.average_price), 0)
+        FROM portfolios p
+        WHERE p.user_id = #{userId}
+    </select>
+
+    <!-- 거래 시점의 총 자산·수익률 스냅샷.
+         보유 평가액과 원가를 각각 서브쿼리로 구한 뒤 현금과 합친다.
+         미보유(원가 0)면 나눌 수 없으므로 수익률은 0으로 둔다. -->
+    <select id="selectTradeSnapshot" resultType="com.skala.stock.dto.TradeSnapshotDto">
+        SELECT
+            u.id AS user_id,
+            u.balance + COALESCE(hv.holding_value, 0) AS total_assets,
+            CASE WHEN COALESCE(hc.holding_cost, 0) = 0 THEN 0
+                 ELSE ROUND((COALESCE(hv.holding_value, 0) - hc.holding_cost) * 100.0
+                            / hc.holding_cost, 2)
+            END AS total_return_rate
+        FROM users u
+        LEFT JOIN (
+            SELECT p.user_id, SUM(p.quantity * s.current_price) AS holding_value
+            FROM portfolios p JOIN stocks s ON s.id = p.stock_id
+            GROUP BY p.user_id
+        ) hv ON hv.user_id = u.id
+        LEFT JOIN (
+            SELECT user_id, SUM(quantity * average_price) AS holding_cost
+            FROM portfolios GROUP BY user_id
+        ) hc ON hc.user_id = u.id
+        WHERE u.id = #{userId}
+    </select>
+
 </mapper>

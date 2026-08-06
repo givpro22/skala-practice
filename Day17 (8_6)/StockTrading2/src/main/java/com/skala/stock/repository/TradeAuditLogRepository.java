@@ -6,5 +6,7 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 public interface TradeAuditLogRepository extends JpaRepository<TradeAuditLog, Long> {
+
+    java.util.List<TradeAuditLog> findByUserIdOrderByIdDesc(Long userId);
 }
 
