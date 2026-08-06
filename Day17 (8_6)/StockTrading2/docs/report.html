@@ -1,0 +1,740 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>백엔드 4일차 실습과제 — 주식 거래 분석 API</title>
+<style>
+  /* Notion 웹 문서 스타일을 따른 조판 */
+  @page { size: A4; margin: 18mm 16mm 16mm; }
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI",
+                 "Apple SD Gothic Neo", Helvetica, Arial, sans-serif;
+    font-size: 10pt; line-height: 1.5; color: rgb(55, 53, 47);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  h2 { font-size: 16pt; font-weight: 600; line-height: 1.3; margin: 1.9em 0 6px; break-after: avoid; }
+  h3 { font-size: 12.5pt; font-weight: 600; line-height: 1.3; margin: 1.5em 0 4px; break-after: avoid; }
+  h4 { font-size: 10.5pt; font-weight: 600; line-height: 1.3; margin: 1.3em 0 4px; break-after: avoid; }
+  p { margin: 3px 0; padding: 3px 2px; }
+  ul, ol { margin: 3px 0; padding-left: 1.7em; }
+  li { padding: 2px 0; }
+  ul ul { list-style-type: circle; padding-left: 1.6em; }
+
+  code {
+    font-family: "SFMono-Regular", Menlo, Consolas, "Liberation Mono", monospace;
+    background: rgba(135, 131, 120, 0.15); color: #EB5757;
+    border-radius: 3px; font-size: 85%; padding: 0.2em 0.4em;
+  }
+  pre {
+    font-family: "SFMono-Regular", Menlo, Consolas, "Liberation Mono", monospace;
+    background: rgb(247, 246, 243); border-radius: 3px; padding: 14px 16px;
+    font-size: 8.2pt; line-height: 1.5; margin: 6px 0;
+    white-space: pre-wrap; word-break: break-word; tab-size: 2; break-inside: avoid;
+  }
+  pre code { background: none; color: inherit; padding: 0; font-size: 100%; }
+  .kw { color: #0277aa; } .an { color: #7c4dff; }
+  .st { color: #669900; } .cm { color: #9b9a97; }
+
+  .callout {
+    background: rgb(241, 241, 239); border-radius: 3px; padding: 14px 16px;
+    margin: 8px 0; font-size: 9.5pt; break-inside: avoid;
+  }
+  .callout > *:first-child { margin-top: 0; padding-top: 0; }
+  .callout > *:last-child { margin-bottom: 0; padding-bottom: 0; }
+  .callout.blue { background: rgb(231, 243, 248); }
+  .callout.yellow { background: rgb(251, 243, 219); }
+  .callout.green { background: rgb(237, 243, 236); }
+
+  hr { border: none; border-top: 1px solid rgba(55, 53, 47, 0.09); margin: 26px 0; }
+
+  table {
+    border-collapse: collapse; width: 100%;
+    margin: 6px 0 10px; font-size: 9pt; break-inside: avoid;
+  }
+  th, td {
+    border: 1px solid rgb(233, 233, 231);
+    padding: 7px 9px; text-align: left; vertical-align: top; line-height: 1.4;
+  }
+  th { background: rgb(247, 246, 243); font-weight: 600; }
+  td.c, th.c { text-align: center; }
+
+  figure { margin: 10px 0 16px; break-inside: avoid; }
+  .shot { background: rgb(247, 246, 243); border-radius: 3px; padding: 14px; }
+  .shot img { width: 100%; display: block; border-radius: 2px; }
+  .shot img.tall { width: auto; max-width: 100%; max-height: 210mm; margin: 0 auto; }
+  figcaption {
+    margin-top: 7px; font-size: 8.2pt; color: rgb(120, 119, 116);
+    text-align: center; line-height: 1.4;
+  }
+
+  /* 표지 */
+  .cover { height: 253mm; display: flex; flex-direction: column; }
+  .cover .kicker {
+    font-size: 8.5pt; letter-spacing: .16em; text-transform: uppercase;
+    color: rgb(120, 119, 116); font-weight: 600; margin-bottom: 14px;
+  }
+  .cover h1 { font-size: 30pt; font-weight: 700; line-height: 1.15; letter-spacing: -0.02em; margin: 0 0 10px; }
+  .cover .subtitle { font-size: 11.5pt; color: rgb(120, 119, 116); line-height: 1.5; margin: 0 0 34px; }
+  .cover .spacer { flex: 1 1 auto; }
+
+  .props { margin: 0 0 34px; max-width: 118mm; }
+  .props .row {
+    display: flex; align-items: baseline; padding: 9px 0;
+    border-bottom: 1px solid rgba(55, 53, 47, 0.09);
+  }
+  .props .row:first-child { border-top: 1px solid rgba(55, 53, 47, 0.09); }
+  .props .k { flex: 0 0 74px; color: rgb(120, 119, 116); font-size: 8.8pt; font-weight: 500; }
+  .props .v { flex: 1 1 auto; font-size: 9.8pt; }
+
+  .tags { display: flex; flex-wrap: wrap; gap: 6px; }
+  .tag { font-size: 8.5pt; padding: 2px 9px; border-radius: 3px;
+         background: rgb(237, 243, 236); color: rgb(68, 131, 97); }
+  .tag.b { background: rgb(231, 243, 248); color: rgb(51, 126, 169); }
+  .tag.y { background: rgb(251, 243, 219); color: rgb(153, 101, 0); }
+  .tag.p { background: rgb(244, 240, 247); color: rgb(144, 101, 176); }
+
+  .toc-head {
+    font-size: 8.5pt; letter-spacing: .16em; text-transform: uppercase;
+    color: rgb(120, 119, 116); font-weight: 600;
+    padding-bottom: 8px; border-bottom: 1px solid rgba(55, 53, 47, 0.16); margin-bottom: 4px;
+  }
+  .toc-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 26px; }
+  .toc-item { padding: 9px 0; border-bottom: 1px solid rgba(55, 53, 47, 0.06); }
+  .toc-item .n { color: rgb(120, 119, 116); font-size: 8.5pt; font-weight: 600;
+                 margin-right: 9px; font-variant-numeric: tabular-nums; }
+  .toc-item .t { font-size: 9.8pt; font-weight: 500; }
+  .toc-item .sub { display: block; padding-left: 24px; margin-top: 3px;
+                   font-size: 8.5pt; color: rgb(120, 119, 116); line-height: 1.55; }
+
+  .t-gray { color: rgb(120, 119, 116); }
+  .t-red { color: rgb(212, 76, 71); }
+  .t-green { color: rgb(68, 131, 97); }
+  .bg-yellow { background: rgb(251, 243, 219); padding: 0 2px; border-radius: 2px; }
+  .bg-red { background: rgb(253, 235, 236); padding: 0 2px; border-radius: 2px; }
+  .bg-green { background: rgb(237, 243, 236); padding: 0 2px; border-radius: 2px; }
+
+  .page-break { break-before: page; }
+  .mono { font-family: "SFMono-Regular", Menlo, Consolas, monospace; }
+</style>
+</head>
+<body>
+
+<section class="cover">
+  <div class="kicker">SKALA · JAVA, REST API와 SPRING BOOT</div>
+  <h1>주식 거래 분석 API<br>JPA · MyBatis · AOP</h1>
+  <p class="subtitle">
+    축소 배포된 StockTrading2에 필수 API를 복원하고<br>
+    분석·통계 기능과 Actuator · AOP를 적용한 기록
+  </p>
+
+  <div class="props">
+    <div class="row"><div class="k">과제</div><div class="v">백엔드 4일차 실습 — 주식 거래 분석 API 개발</div></div>
+    <div class="row"><div class="k">제출자</div><div class="v">광주 4반 · G122 박영서</div></div>
+    <div class="row"><div class="k">제출일</div><div class="v">2026년 8월 6일</div></div>
+    <div class="row"><div class="k">저장소</div><div class="v"><code>Day17 (8_6)/StockTrading2</code></div></div>
+    <div class="row"><div class="k">환경</div><div class="v">Java 21 · Spring Boot 3.2.0 · JPA · MyBatis 3.0.3 · H2 · Gradle 8.5</div></div>
+    <div class="row"><div class="k">실행</div><div class="v">
+      Swagger <code>localhost:8080/swagger-ui.html</code> · Actuator <code>localhost:8080/actuator</code>
+    </div></div>
+    <div class="row"><div class="k">완료</div><div class="v">
+      <div class="tags">
+        <span class="tag">필수 API 8종</span>
+        <span class="tag">분석 API 8종</span>
+        <span class="tag b">Actuator</span>
+        <span class="tag y">AOP 2종</span>
+        <span class="tag p">MyBatis</span>
+      </div>
+    </div></div>
+  </div>
+
+  <div class="spacer"></div>
+
+  <div class="toc-head">목차</div>
+  <div class="toc-grid">
+    <div class="toc-item"><span class="n">01</span><span class="t">개요</span>
+      <span class="sub">요구사항 · 구현 결과 · 변경 파일</span></div>
+    <div class="toc-item"><span class="n">05</span><span class="t">AOP</span>
+      <span class="sub">실행 시간 측정 · 거래 감사 로그 · 트랜잭션 분리</span></div>
+
+    <div class="toc-item"><span class="n">02</span><span class="t">필수 API 복원</span>
+      <span class="sub">사용자 · 주식 · 거래 · 포트폴리오 8종</span></div>
+    <div class="toc-item"><span class="n">06</span><span class="t">Actuator</span>
+      <span class="sub">health · info · metrics 노출</span></div>
+
+    <div class="toc-item"><span class="n">03</span><span class="t">매매 트랜잭션</span>
+      <span class="sub">잔액 · 포트폴리오 · 거래 내역을 한 단위로</span></div>
+    <div class="toc-item"><span class="n">07</span><span class="t">검증과 오류 처리</span>
+      <span class="sub">상태 코드 매핑 · 참조 무결성</span></div>
+
+    <div class="toc-item"><span class="n">04</span><span class="t">분석 API</span>
+      <span class="sub">평가손익 · 자산 · 수익률 · 통계 (JPA + MyBatis)</span></div>
+    <div class="toc-item"><span class="n">08</span><span class="t">마무리</span>
+      <span class="sub">검증 결과 · 배운 것 · 더 해볼 것</span></div>
+  </div>
+</section>
+
+<h2 class="page-break">1. 개요</h2>
+
+<p>배포받은 <code>StockTrading2</code>는 실습을 위해 <span class="bg-yellow">상당 부분이 제거된 상태</span>였습니다.
+분석 관련 클래스는 주석만 남아 있었습니다.</p>
+
+<pre><span class="cm">// StockAnalysisController는 모든 기능이 제거되었습니다.
+// 교육생 실습을 위해 이 컨트롤러는 삭제되었습니다.</span></pre>
+
+<p>여기에 필수 API를 복원하고, 분석·통계 기능과 운영 관점의 기능(Actuator · AOP)을 붙이는 것이 이번 과제입니다.</p>
+
+<div class="callout">
+  <p><strong>캡처 화면의 포트에 대하여</strong> — 애플리케이션의 기본 포트는 <code>8080</code>이지만,
+  촬영 당시 호스트의 8080 포트가 다른 프로세스에 점유되어 있어
+  <code>--server.port=8083</code>으로 실행했습니다.
+  그래서 화면의 주소가 <code>localhost:8083</code>으로 표시됩니다. 동작에는 차이가 없습니다.</p>
+</div>
+
+<h3>요구사항과 결과</h3>
+
+<h4>필수 API</h4>
+<table>
+  <tr><th style="width:30%">기능</th><th style="width:42%">엔드포인트</th><th>결과</th></tr>
+  <tr><td>User 전체 조회</td><td><code>GET /api/users</code></td><td><span class="bg-green">200</span></td></tr>
+  <tr><td>User 삭제</td><td><code>DELETE /api/users/{id}</code></td><td><span class="bg-green">204</span></td></tr>
+  <tr><td>Stock 수정</td><td><code>PUT /api/stocks/{id}</code></td><td><span class="bg-green">200</span></td></tr>
+  <tr><td>Stock 삭제</td><td><code>DELETE /api/stocks/{id}</code></td><td><span class="bg-green">204</span></td></tr>
+  <tr><td>Stock 코드로 조회</td><td><code>GET /api/stocks/code/{code}</code></td><td><span class="bg-green">200</span></td></tr>
+  <tr><td>Transaction 상세 조회</td><td><code>GET /api/transactions/{id}</code></td><td><span class="bg-green">200</span> <span class="t-gray">읽기 전용</span></td></tr>
+  <tr><td>Transaction 매매 실행</td><td><code>POST /api/transactions/trade</code></td><td><span class="bg-green">201</span></td></tr>
+  <tr><td>Portfolio 특정 주식</td><td><code>GET /api/portfolios/user/{userId}/stock/{stockId}</code></td><td><span class="bg-green">200</span></td></tr>
+</table>
+
+<h4>분석 · 고급 기능 <span class="t-gray">(5개 이상 요구 → 8개 구현)</span></h4>
+<table>
+  <tr><th class="c" style="width:8%">번호</th><th style="width:32%">기능</th><th style="width:38%">엔드포인트</th><th>구현</th></tr>
+  <tr><td class="c">①</td><td>포트폴리오 평가 손익</td><td><code>GET /api/analysis/portfolio/{userId}</code></td><td>JPA</td></tr>
+  <tr><td class="c">②</td><td>거래 내역 상세</td><td><code>GET /api/analysis/transactions/{userId}</code></td><td>JPA</td></tr>
+  <tr><td class="c">③</td><td>특정 주식 거래 내역</td><td><code>GET /api/analysis/transactions/{userId}/stock/{stockId}</code></td><td>JPA</td></tr>
+  <tr><td class="c">④</td><td>총 자산 조회</td><td><code>GET /api/analysis/assets/{userId}</code></td><td><strong>MyBatis</strong></td></tr>
+  <tr><td class="c">⑤</td><td>총 수익률 조회</td><td><code>GET /api/analysis/return-rate/{userId}</code></td><td><strong>MyBatis</strong></td></tr>
+  <tr><td class="c">⑥</td><td>거래 통계 조회</td><td><code>GET /api/analysis/statistics/{userId}</code></td><td><strong>MyBatis</strong></td></tr>
+  <tr><td class="c">⑦</td><td>일별 거래 내역</td><td><code>GET /api/analysis/daily/{userId}</code></td><td><strong>MyBatis</strong></td></tr>
+  <tr><td class="c">⑧</td><td>거래 감사 로그 <span class="t-gray">(AOP 결과 확인용)</span></td><td><code>GET /api/analysis/audit/{userId}</code></td><td>JPA</td></tr>
+</table>
+
+<p>Transaction 쪽 "특정 주식 거래 내역"도 별도로 두어
+<code>GET /api/transactions/user/{userId}/stock/{stockId}</code>로 접근할 수 있게 했습니다.</p>
+
+<h4>기능 추가</h4>
+<table>
+  <tr><th style="width:24%">항목</th><th>적용 내용</th></tr>
+  <tr><td>Actuator</td><td><code>health</code>(하위 구성요소 포함) · <code>info</code> · <code>metrics</code> 등 7종 노출</td></tr>
+  <tr><td>AOP</td><td>① 서비스 실행 시간 측정 &nbsp; ② 거래 감사 로그 기록(별도 트랜잭션)</td></tr>
+</table>
+
+<h3>추가·변경한 파일</h3>
+<pre>src/main/java/com/skala/stock/
+├─ aop/                                   <span class="cm">← 신규 패키지</span>
+│  ├─ ExecutionTimeAspect.java            <span class="cm">서비스 실행 시간 측정</span>
+│  └─ TradeAuditAspect.java               <span class="cm">거래 감사 로그</span>
+├─ exception/                             <span class="cm">← 신규 패키지</span>
+│  ├─ GlobalExceptionHandler.java
+│  ├─ ResourceNotFoundException.java      <span class="cm">(404)</span>
+│  ├─ DuplicateResourceException.java     <span class="cm">(409)</span>
+│  ├─ ResourceInUseException.java         <span class="cm">(409)</span>
+│  └─ BusinessRuleException.java          <span class="cm">(400)</span>
+├─ controller/  StockAnalysisController   <span class="cm">← 복원(8개) · 나머지 3개 확장</span>
+├─ service/     StockAnalysisService      <span class="cm">← 복원</span>
+│               TradeAuditRecorder.java   <span class="cm">← 신규(REQUIRES_NEW 저장)</span>
+├─ mapper/      StockMapper.java          <span class="cm">← 복원(집계 쿼리 5종)</span>
+│               DailyTradeDto.java        <span class="cm">← 신규</span>
+└─ dto/         AssetSummaryDto.java      <span class="cm">← 신규</span>
+                ReturnRateDto.java        <span class="cm">← 신규</span>
+                ErrorResponse.java        <span class="cm">← 신규</span>
+
+src/main/resources/
+├─ mapper/StockMapper.xml                 <span class="cm">← 복원(집계 SQL)</span>
+└─ application.yml                        <span class="cm">← Actuator 설정</span>
+
+build.gradle                              <span class="cm">← actuator · aop 의존성</span></pre>
+
+<figure>
+  <div class="shot"><img src="images/01-swagger-list.png" alt="Swagger 전체 API 목록" class="tall"></div>
+  <figcaption>Swagger UI — 사용자 · 주식 · 거래 · 포트폴리오 · 분석 5개 그룹, 총 24개 엔드포인트</figcaption>
+</figure>
+
+<hr>
+
+<h2>2. 필수 API 복원</h2>
+
+<h3>종목 코드로 조회 · 전체 조회</h3>
+
+<p><code>id</code>는 DB가 부여한 값이라 외부에서 알기 어렵습니다.
+종목 코드 <code>005930</code>은 사용자가 아는 값이므로 별도 조회 경로를 두었습니다.</p>
+
+<div class="callout blue">
+  <p><strong>주소 설계</strong> — <code>/api/stocks/{id}</code>가 이미 한 칸짜리 경로를 차지하고 있어
+  <code>/api/stocks/{code}</code>로 만들면 충돌합니다. <code>/code/</code>를 한 단계 더 두어
+  두 칸짜리 경로로 분리했습니다.</p>
+</div>
+
+<figure>
+  <div class="shot"><img src="images/03-stock-by-code.png" alt="종목 코드로 조회" class="tall"></div>
+  <figcaption><code>GET /api/stocks/code/005930</code> — 종목 코드로 삼성전자 조회</figcaption>
+</figure>
+
+<figure>
+  <div class="shot"><img src="images/02-user-list.png" alt="전체 사용자 조회" class="tall"></div>
+  <figcaption><code>GET /api/users</code> — 전체 사용자 조회</figcaption>
+</figure>
+
+<h3 class="page-break">수정 — 자기 코드는 허용, 남의 코드는 거절</h3>
+
+<p>종목 코드에는 <code>unique</code> 제약이 있습니다. 수정할 때 <strong>다른 종목이 쓰는 코드</strong>로는
+바꿀 수 없지만, <strong>자기가 쓰던 코드를 그대로 보내는 것</strong>은 허용해야 합니다.
+그래서 "코드가 바뀌었는지"를 먼저 확인합니다.</p>
+
+<pre><span class="an">@Transactional</span>
+<span class="kw">public</span> StockDto updateStock(Long id, StockDto stockDto) {
+    Stock stock = findStockOrThrow(id);
+
+    <span class="kw">if</span> (!stock.getCode().equals(stockDto.getCode())
+            &amp;&amp; stockRepository.existsByCode(stockDto.getCode())) {
+        <span class="kw">throw new</span> DuplicateResourceException(<span class="st">"이미 존재하는 종목 코드입니다: "</span> + stockDto.getCode());
+    }
+
+    stock.setCode(stockDto.getCode());
+    stock.setName(stockDto.getName());
+    stock.setCurrentPrice(stockDto.getCurrentPrice());
+    stock.setPreviousPrice(stockDto.getPreviousPrice());
+
+    <span class="kw">return</span> convertToDto(stockRepository.save(stock));
+}</pre>
+
+<figure>
+  <div class="shot"><img src="images/04-stock-update.png" alt="주식 수정" class="tall"></div>
+  <figcaption><code>PUT /api/stocks/3</code> — NAVER 종목명·현재가 수정, <span class="t-green">200 OK</span></figcaption>
+</figure>
+
+<h3 class="page-break">삭제 — 참조 무결성을 먼저 확인</h3>
+
+<p><code>portfolios</code>와 <code>transactions</code>가 <code>user_id</code>·<code>stock_id</code>를
+<strong>NOT NULL 외래키</strong>로 참조합니다. 참조가 남은 채 삭제하면 무결성 제약에 걸려
+<span class="bg-red">500</span>이 납니다. 사용자 입장에서는 "서버가 고장났다"로 보이지만
+실제로는 <strong>요청이 잘못된 것</strong>이므로, 미리 확인해 <span class="bg-yellow">409</span>와 이유를 돌려줍니다.</p>
+
+<pre><span class="an">@Transactional</span>
+<span class="kw">public void</span> deleteStock(Long id) {
+    Stock stock = findStockOrThrow(id);
+
+    <span class="kw">if</span> (portfolioRepository.existsByStockId(id)) {
+        <span class="kw">throw new</span> ResourceInUseException(<span class="st">"보유 중인 포트폴리오가 있어 삭제할 수 없습니다: "</span> + stock.getCode());
+    }
+    <span class="kw">if</span> (transactionRepository.existsByStockId(id)) {
+        <span class="kw">throw new</span> ResourceInUseException(<span class="st">"거래 내역이 있어 삭제할 수 없습니다: "</span> + stock.getCode());
+    }
+
+    stockRepository.delete(stock);
+}</pre>
+
+<div class="callout yellow">
+  <p><strong>거래 내역은 함께 지우지 않았습니다.</strong>
+  포트폴리오는 현재 상태라 지워도 되지만, 거래 내역은 <em>"언제 무엇을 얼마에 샀다"</em>는
+  <strong>기록</strong>입니다. 사용자를 지운다고 함께 없애면 안 된다고 판단해 삭제를 거절합니다.</p>
+</div>
+
+<figure>
+  <div class="shot"><img src="images/08-stock-delete-409.png" alt="참조 중인 주식 삭제" class="tall"></div>
+  <figcaption><code>DELETE /api/stocks/1</code> — 보유·거래 기록이 있는 종목은 <span class="t-red">409 Conflict</span></figcaption>
+</figure>
+
+<figure>
+  <div class="shot"><img src="images/09-user-delete-409.png" alt="참조 중인 사용자 삭제" class="tall"></div>
+  <figcaption><code>DELETE /api/users/1</code> — 포트폴리오를 보유한 사용자도 <span class="t-red">409</span></figcaption>
+</figure>
+
+<hr>
+
+<h2>3. 매매 트랜잭션</h2>
+
+<p>매매 한 번에 <strong>세 가지가 함께</strong> 바뀝니다.</p>
+
+<ol>
+  <li>사용자 <strong>잔액</strong> — 매수면 차감, 매도면 증가</li>
+  <li><strong>포트폴리오</strong> — 보유 수량과 평균 매수가</li>
+  <li><strong>거래 내역</strong> 기록</li>
+</ol>
+
+<p>중간에 실패하면 셋 다 함께 되돌아가야 하므로 <code>@Transactional</code>로 묶었습니다.</p>
+
+<pre><span class="an">@Transactional</span>
+<span class="kw">public</span> TransactionDto executeTrade(TradeRequestDto request) {
+    User user = userRepository.findById(request.getUserId())
+            .orElseThrow(() -&gt; ResourceNotFoundException.of(<span class="st">"사용자"</span>, request.getUserId()));
+    Stock stock = stockRepository.findById(request.getStockId())
+            .orElseThrow(() -&gt; ResourceNotFoundException.of(<span class="st">"주식"</span>, request.getStockId()));
+
+    <span class="kw">long</span> price = stock.getCurrentPrice();
+    <span class="kw">long</span> totalAmount = price * request.getQuantity();
+
+    <span class="kw">if</span> (request.getType() == Transaction.TransactionType.BUY) {
+        buy(user, stock, request.getQuantity(), price, totalAmount);
+    } <span class="kw">else</span> {
+        sell(user, stock, request.getQuantity(), totalAmount);
+    }
+
+    Transaction transaction = transactionRepository.save(Transaction.builder()
+            .user(user).stock(stock).type(request.getType())
+            .quantity(request.getQuantity()).price(price).totalAmount(totalAmount)
+            .transactionDate(LocalDateTime.now()).build());
+
+    <span class="kw">return</span> convertToDto(transaction);
+}</pre>
+
+<h3>평균 매수가 계산</h3>
+
+<p>같은 종목을 여러 번 사면 평균 매수가를 다시 계산해야 합니다.</p>
+
+<pre><span class="cm">// 새 평균가 = (기존 평가액 + 이번 매수액) / (기존 수량 + 이번 수량)</span>
+<span class="kw">long</span> beforeAmount = portfolio.getQuantity() * portfolio.getAveragePrice();
+<span class="kw">long</span> addedAmount  = quantity * price;
+<span class="kw">long</span> totalQuantity = portfolio.getQuantity() + quantity;
+
+portfolio.setAveragePrice((beforeAmount + addedAmount) / totalQuantity);
+portfolio.setQuantity(totalQuantity);</pre>
+
+<p><strong>매도는 평균가를 바꾸지 않습니다.</strong> 파는 것은 이미 산 것의 일부를 넘기는 일이라
+"얼마에 샀는지"는 변하지 않기 때문입니다. 수량만 줄이고, 0이 되면 보유 목록에서 제거합니다.</p>
+
+<figure>
+  <div class="shot"><img src="images/05-trade.png" alt="매매 실행" class="tall"></div>
+  <figcaption><code>POST /api/transactions/trade</code> — NAVER 2주 매수, <span class="t-green">201 Created</span></figcaption>
+</figure>
+
+<figure>
+  <div class="shot"><img src="images/06-transaction-detail.png" alt="거래 상세 조회" class="tall"></div>
+  <figcaption><code>GET /api/transactions/1</code> — 거래 상세 조회(읽기 전용). 사용자·종목 정보가 함께 조회됨</figcaption>
+</figure>
+
+<figure>
+  <div class="shot"><img src="images/07-portfolio-stock.png" alt="특정 주식 포트폴리오" class="tall"></div>
+  <figcaption><code>GET /api/portfolios/user/1/stock/1</code> — 보유 6주 · 평균가 70,000 · 현재가 90,000 · 평가손익 +120,000</figcaption>
+</figure>
+
+<hr>
+
+<h2>4. 분석 API</h2>
+
+<h3>JPA와 MyBatis를 나눠 쓴 기준</h3>
+
+<p>같은 데이터라도 <strong>"무엇을 묻느냐"</strong>에 따라 도구를 나눴습니다.</p>
+
+<table>
+  <tr><th style="width:22%">도구</th><th style="width:34%">쓰는 곳</th><th>이유</th></tr>
+  <tr><td><strong>JPA</strong></td><td>엔티티 단위 조회 · CRUD</td>
+      <td>객체로 다루는 것이 자연스럽고, 연관관계 탐색이 쉽다</td></tr>
+  <tr><td><strong>MyBatis</strong></td><td><code>GROUP BY</code> · <code>CASE WHEN</code> 집계</td>
+      <td>SQL을 직접 쓰는 편이 읽기 쉽고 의도가 분명하다</td></tr>
+</table>
+
+<pre><span class="cm">-- 종목별 매수/매도 집계: CASE WHEN 으로 한 번의 스캔에서 둘 다 더한다</span>
+SELECT
+    s.code AS stock_code,
+    s.name AS stock_name,
+    COALESCE(SUM(CASE WHEN t.type = 'BUY'  THEN t.quantity ELSE 0 END), 0) AS total_buy_quantity,
+    COALESCE(SUM(CASE WHEN t.type = 'SELL' THEN t.quantity ELSE 0 END), 0) AS total_sell_quantity,
+    COALESCE(SUM(CASE WHEN t.type = 'BUY'  THEN t.quantity ELSE -t.quantity END), 0) AS net_quantity,
+    ...
+FROM transactions t
+JOIN stocks s ON s.id = t.stock_id
+WHERE t.user_id = #{userId}
+GROUP BY s.code, s.name</pre>
+
+<div class="callout blue">
+  <p><code>application.yml</code>에 <code>map-underscore-to-camel-case: true</code>가 있어
+  <code>stock_code</code> → <code>stockCode</code>로 자동 매핑됩니다.
+  DTO 필드명과 SQL 별칭을 각각의 관례대로 쓸 수 있습니다.</p>
+</div>
+
+<h3 class="page-break">① 포트폴리오 평가 손익</h3>
+
+<figure>
+  <div class="shot"><img src="images/10-analysis-portfolio.png" alt="포트폴리오 평가 손익" class="tall"></div>
+  <figcaption>보유 종목별 평가 금액과 손익 — 삼성전자 6주, 평균가 70,000 → 현재가 90,000</figcaption>
+</figure>
+
+<h3>④ 총 자산 · ⑤ 총 수익률</h3>
+
+<p>총 자산은 <strong>현금 + 보유 주식 평가액</strong>입니다. 평가액과 원가 합계는 MyBatis 집계로 구합니다.</p>
+
+<pre><span class="kw">long</span> holdingValue = nullToZero(stockMapper.selectHoldingValue(userId));  <span class="cm">// 수량 × 현재가</span>
+<span class="kw">long</span> holdingCost  = nullToZero(stockMapper.selectHoldingCost(userId));   <span class="cm">// 수량 × 평균 매수가</span>
+<span class="kw">long</span> profit = holdingValue - holdingCost;
+
+<span class="cm">// 보유 주식이 없으면 원가가 0이라 나눌 수 없으므로 0%로 본다</span>
+<span class="kw">double</span> rate = (holdingCost == <span class="nu">0</span>) ? <span class="nu">0.0</span>
+        : Math.round((profit * <span class="nu">10000.0</span>) / holdingCost) / <span class="nu">100.0</span>;  <span class="cm">// 소수 둘째 자리</span></pre>
+
+<figure>
+  <div class="shot"><img src="images/11-analysis-assets.png" alt="총 자산 조회" class="tall"></div>
+  <figcaption><code>GET /api/analysis/assets/1</code> — 현금 340,000 + 평가 780,000 = 총 자산 1,120,000</figcaption>
+</figure>
+
+<figure>
+  <div class="shot"><img src="images/12-analysis-return.png" alt="총 수익률 조회" class="tall"></div>
+  <figcaption><code>GET /api/analysis/return-rate/1</code> — 원가 660,000 → 평가 780,000, 수익률 <strong>18.18%</strong></figcaption>
+</figure>
+
+<h3 class="page-break">⑥ 거래 통계 · ⑦ 일별 거래</h3>
+
+<figure>
+  <div class="shot"><img src="images/13-analysis-statistics.png" alt="거래 통계" class="tall"></div>
+  <figcaption>종목별 매수·매도 집계 — 순수량(net_quantity)과 순금액(net_amount)까지 한 쿼리로</figcaption>
+</figure>
+
+<figure>
+  <div class="shot"><img src="images/14-analysis-daily.png" alt="일별 거래 내역" class="tall"></div>
+  <figcaption>날짜별 거래 건수와 매수·매도 금액 — <code>FORMATDATETIME</code>으로 날짜만 잘라 GROUP BY</figcaption>
+</figure>
+
+<h3>③ 특정 주식 거래 내역</h3>
+
+<figure>
+  <div class="shot"><img src="images/16-analysis-stock-tx.png" alt="특정 주식 거래 내역" class="tall"></div>
+  <figcaption><code>/api/analysis/transactions/1/stock/1</code> — 삼성전자 매수·매도 내역만 필터</figcaption>
+</figure>
+
+<hr>
+
+<h2>5. AOP</h2>
+
+<p>두 가지를 적용했습니다. 둘 다 <strong>업무 로직과는 무관하지만 여러 곳에 필요한 일</strong>입니다.</p>
+
+<h3>① 서비스 실행 시간 측정</h3>
+
+<p>실행 시간 측정은 모든 서비스 메서드에 필요하지만 업무 로직과는 상관없습니다.
+메서드마다 시간 측정 코드를 넣으면 본래 코드가 묻히고, 빠뜨린 메서드가 생깁니다.
+한 곳에 모아 두면 서비스 코드는 깨끗해지고 적용 범위도 포인트컷 한 줄로 관리됩니다.</p>
+
+<pre><span class="an">@Pointcut</span>(<span class="st">"execution(public * com.skala.stock.service..*(..))"</span>)
+<span class="kw">public void</span> serviceMethods() { }
+
+<span class="an">@Around</span>(<span class="st">"serviceMethods()"</span>)
+<span class="kw">public</span> Object measure(ProceedingJoinPoint joinPoint) <span class="kw">throws</span> Throwable {
+    <span class="kw">long</span> start = System.nanoTime();
+    <span class="kw">try</span> {
+        <span class="kw">return</span> joinPoint.proceed();
+    } <span class="kw">finally</span> {
+        <span class="kw">long</span> elapsedMs = (System.nanoTime() - start) / <span class="nu">1_000_000</span>;
+        <span class="kw">if</span> (elapsedMs &gt;= SLOW_THRESHOLD_MS) {
+            log.warn(<span class="st">"[AOP] {} 실행 {}ms — 느림"</span>, target, elapsedMs);
+        } <span class="kw">else</span> {
+            log.info(<span class="st">"[AOP] {} 실행 {}ms"</span>, target, elapsedMs);
+        }
+    }
+}</pre>
+
+<p><code>finally</code>에 둔 이유는 <strong>예외가 나도 시간이 기록되어야</strong> 하기 때문입니다.
+느린 호출(100ms 이상)은 <code>WARN</code>으로 올려 눈에 띄게 했습니다.</p>
+
+<h3>② 거래 감사 로그</h3>
+
+<p>"거래를 기록한다"는 요구는 매매 로직 자체와 별개입니다.
+<code>executeTrade()</code> 안에 감사 코드를 넣으면 잔액 계산·포트폴리오 갱신 같은
+본래 관심사와 섞입니다. 분리하면 매매 로직은 매매만 다루고, 감사 정책이 바뀌어도
+이 클래스만 고치면 됩니다.</p>
+
+<pre><span class="an">@AfterReturning</span>(pointcut = <span class="st">"execution(* ...TransactionService.executeTrade(..)) &amp;&amp; args(request)"</span>,
+        returning = <span class="st">"result"</span>, argNames = <span class="st">"request,result"</span>)
+<span class="kw">public void</span> logSuccess(TradeRequestDto request, TransactionDto result) { ... }
+
+<span class="an">@AfterThrowing</span>(pointcut = <span class="st">"execution(* ...TransactionService.executeTrade(..)) &amp;&amp; args(request)"</span>,
+        throwing = <span class="st">"ex"</span>, argNames = <span class="st">"request,ex"</span>)
+<span class="kw">public void</span> logFailure(TradeRequestDto request, Throwable ex) { ... }</pre>
+
+<div class="callout yellow">
+  <p><strong>여기서 두 번 막혔습니다.</strong></p>
+  <p><strong>1) 자기 호출 문제</strong> — 처음에는 Aspect 안에 <code>@Transactional</code> 메서드를 두고
+  같은 클래스에서 호출했습니다. 이러면 <strong>프록시를 거치지 않아</strong>
+  <code>REQUIRES_NEW</code>가 적용되지 않습니다. 저장 로직을 별도 빈
+  (<code>TradeAuditRecorder</code>)으로 분리해 해결했습니다.</p>
+  <p><strong>2) 실행 순서</strong> — Aspect가 트랜잭션 어드바이저보다 안쪽에서 돌면
+  거래 트랜잭션이 아직 살아 있는 상태에서 로그를 남기게 됩니다.
+  <code>@Order(0)</code>을 붙여 <strong>트랜잭션보다 바깥</strong>에 두었습니다.</p>
+</div>
+
+<h4>왜 별도 트랜잭션(REQUIRES_NEW)인가</h4>
+
+<p>실패한 거래(잔액 부족 등)도 <strong>"시도했다"는 사실은 남아야</strong> 합니다.
+거래 트랜잭션에 얹으면 롤백될 때 로그까지 함께 사라집니다.</p>
+
+<pre><span class="an">@Transactional</span>(propagation = Propagation.REQUIRES_NEW)
+<span class="kw">public void</span> record(Long userId, Long stockId, TransactionType type, String message) {
+    TradeSnapshotDto snapshot = stockMapper.selectTradeSnapshot(userId);
+
+    auditLogRepository.save(TradeAuditLog.builder()
+            .userId(userId).stockId(stockId).type(type).message(cut(message))
+            .totalAssets(snapshot.getTotalAssets())          <span class="cm">// 그 시점 총 자산</span>
+            .totalReturnRate(snapshot.getTotalReturnRate())  <span class="cm">// 그 시점 수익률</span>
+            .build());
+}</pre>
+
+<h4>메시지만으로는 부족하다 — 자산 스냅샷도 함께</h4>
+
+<p>처음에는 메시지만 남겼는데, 배포본의 <code>TradeAuditLog</code> 엔티티에는
+<code>total_assets</code> · <code>total_return_rate</code> 컬럼이 있고
+<code>TradeSnapshotDto</code>도 함께 제공되어 있었습니다.
+<strong>"이 거래 직후 자산이 얼마였는지"</strong>를 남기라는 뜻으로 읽혀 스냅샷을 함께 저장하도록 했습니다.
+로그만 보고도 그 시점 상태를 알 수 있어야 감사 기록으로서 쓸모가 있기 때문입니다.</p>
+
+<pre><span class="cm">-- 총 자산·수익률을 한 번의 쿼리로 (MyBatis)</span>
+SELECT u.id AS user_id,
+       u.balance + COALESCE(hv.holding_value, 0) AS total_assets,
+       CASE WHEN COALESCE(hc.holding_cost, 0) = 0 THEN 0
+            ELSE ROUND((COALESCE(hv.holding_value, 0) - hc.holding_cost) * 100.0
+                       / hc.holding_cost, 2)
+       END AS total_return_rate
+FROM users u
+LEFT JOIN ( ... 보유 평가액 ... ) hv ON hv.user_id = u.id
+LEFT JOIN ( ... 매입 원가   ... ) hc ON hc.user_id = u.id
+WHERE u.id = #{userId}</pre>
+
+<div class="callout blue">
+  <p>거래 시점의 수익률이 <code>0.0%</code>인 것은 정상입니다.
+  방금 산 주식은 <strong>현재가와 평균 매수가가 같아</strong> 아직 손익이 없기 때문입니다.
+  이후 주가가 오르면 분석 API(<code>/api/analysis/return-rate</code>)가 그 변화를 반영합니다.</p>
+</div>
+
+<figure>
+  <div class="shot"><img src="images/t2-aop.png" alt="AOP 동작 확인"></div>
+  <figcaption>실패한 매매(400)에도 <code>[AOP]</code> 로그가 남고, 감사 로그에 <strong>실패 기록 #4가 보존</strong>됨</figcaption>
+</figure>
+
+<figure>
+  <div class="shot"><img src="images/15-analysis-audit.png" alt="감사 로그 조회" class="tall"></div>
+  <figcaption><code>GET /api/analysis/audit/1</code> — 성공 3건과 실패 1건이 함께 조회됨</figcaption>
+</figure>
+
+<hr>
+
+<h2>6. Actuator</h2>
+
+<p>의존성을 추가하고 필요한 엔드포인트를 열었습니다. 기본값은 <code>health</code> 하나만 노출됩니다.</p>
+
+<pre><span class="cm"># application.yml</span>
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, info, metrics, env, beans, mappings
+  endpoint:
+    health:
+      show-details: always   <span class="cm"># 디스크·DB 등 하위 구성요소 상태까지 표시</span>
+
+info:
+  app:
+    name: SKALA Stock Trading API (Day17)
+    description: 주식 거래 분석 API — JPA + MyBatis · AOP · Actuator</pre>
+
+<figure>
+  <div class="shot"><img src="images/t1-actuator.png" alt="Actuator 확인"></div>
+  <figcaption>노출된 엔드포인트 7종 · <code>health</code> 하위 구성요소(db · diskSpace · ping) · <code>info</code></figcaption>
+</figure>
+
+<p><code>/actuator/mappings</code>로는 실제 등록된 URL 매핑을 확인할 수 있어,
+이번처럼 엔드포인트를 대량으로 추가했을 때 누락 여부를 점검하기 좋았습니다.</p>
+
+<hr>
+
+<h2>7. 검증과 오류 처리</h2>
+
+<p>배포본에는 전역 예외 처리기가 없어 서비스가 던진 예외가 전부
+<span class="bg-red">500</span>으로 나갔습니다. 예외 타입을 나누고
+<code>@RestControllerAdvice</code>에서 상태 코드로 매핑했습니다.</p>
+
+<table>
+  <tr><th style="width:38%">상황</th><th style="width:34%">예외</th><th class="c">상태 코드</th></tr>
+  <tr><td>입력값 검증 실패</td><td><code>MethodArgumentNotValid</code></td><td class="c"><span class="bg-red">400</span></td></tr>
+  <tr><td>경로 변수 제약 위반</td><td><code>ConstraintViolation</code></td><td class="c"><span class="bg-red">400</span></td></tr>
+  <tr><td>타입 불일치 · 깨진 JSON</td><td><code>TypeMismatch</code> 등</td><td class="c"><span class="bg-red">400</span></td></tr>
+  <tr><td>잔액 · 수량 부족</td><td><code>BusinessRuleException</code></td><td class="c"><span class="bg-red">400</span></td></tr>
+  <tr><td>자원 없음</td><td><code>ResourceNotFoundException</code></td><td class="c"><span class="bg-red">404</span></td></tr>
+  <tr><td>없는 경로 · 미지원 메서드</td><td><code>NoResourceFound</code> 등</td><td class="c"><span class="bg-red">404 / 405</span></td></tr>
+  <tr><td>중복 · 참조 중 삭제</td><td><code>Duplicate</code> · <code>ResourceInUse</code></td><td class="c"><span class="bg-red">409</span></td></tr>
+</table>
+
+<p>경로 변수 제약은 클래스에 <code>@Validated</code>가 있어야 동작합니다.
+<strong>컨트롤러 5곳 모두</strong>에 적용해 앱 전체에서 같은 방식으로 걸러지게 했습니다.</p>
+
+<figure>
+  <div class="shot"><img src="images/t3-validation.png" alt="검증과 오류 처리"></div>
+  <figcaption>상태 코드 매핑 8종 확인 · 검증 실패 시 <code>fieldErrors</code>에 필드별 사유 · 참조 중 삭제 거절</figcaption>
+</figure>
+
+<hr>
+
+<h2>8. 마무리</h2>
+
+<h3>검증 결과</h3>
+
+<table>
+  <tr><th style="width:56%">검증 항목</th><th class="c" style="width:14%">기대</th><th class="c">결과</th></tr>
+  <tr><td>필수 API 8종 (조회 · 수정 · 삭제 · 매매)</td><td class="c">200/201/204</td><td class="c"><span class="bg-green">통과</span></td></tr>
+  <tr><td>분석 API 8종</td><td class="c">200</td><td class="c"><span class="bg-green">통과</span></td></tr>
+  <tr><td>참조 중인 주식 · 사용자 삭제</td><td class="c">409</td><td class="c"><span class="bg-green">409</span></td></tr>
+  <tr><td>잔액 초과 매수</td><td class="c">400</td><td class="c"><span class="bg-green">400</span></td></tr>
+  <tr><td>경로 변수 <code>@Min</code> 위반 · 타입 불일치</td><td class="c">400</td><td class="c"><span class="bg-green">400</span></td></tr>
+  <tr><td>없는 사용자 · 종목 · 미보유 주식</td><td class="c">404</td><td class="c"><span class="bg-green">404</span></td></tr>
+  <tr><td>없는 경로 · 미지원 메서드</td><td class="c">404 / 405</td><td class="c"><span class="bg-green">404 / 405</span></td></tr>
+  <tr><td>총 자산 · 수익률 계산 정확도</td><td class="c">수식 일치</td><td class="c"><span class="bg-green">일치</span></td></tr>
+  <tr><td>AOP 실행 시간 로그</td><td class="c">전 서비스</td><td class="c"><span class="bg-green">기록됨</span></td></tr>
+  <tr><td>AOP 감사 로그 (실패 거래 보존)</td><td class="c">롤백 무관</td><td class="c"><span class="bg-green">보존됨</span></td></tr>
+  <tr><td><code>/actuator/health</code></td><td class="c">200 UP</td><td class="c"><span class="bg-green">UP</span></td></tr>
+</table>
+
+<h4>계산 검증 — 수치가 맞는지 직접 확인</h4>
+
+<pre>초기 잔액                              1,000,000
+BUY  삼성전자 10주 @70,000    -700,000 →   300,000
+BUY  SK하이닉스 2주 @120,000  -240,000 →    60,000
+SELL 삼성전자  4주 @70,000    +280,000 →   340,000  ← 현금 잔액
+
+보유:  삼성전자 6주 @70,000 = 420,000  (현재가 90,000 → 540,000)
+       SK하이닉스 2주 @120,000 = 240,000 (현재가 120,000 → 240,000)
+매입 원가 660,000 / 평가액 780,000 → 평가 손익 +120,000
+
+총 자산   = 340,000 + 780,000 = 1,120,000   ✓ API 응답과 일치
+수익률    = 120,000 / 660,000 × 100 = 18.18%  ✓ API 응답과 일치</pre>
+
+<h3>배운 것</h3>
+<ul>
+  <li><strong>AOP는 "어디에 붙이느냐"만큼 "언제 도느냐"가 중요하다</strong> —
+      트랜잭션 어드바이저와의 순서에 따라 같은 코드가 다르게 동작한다.
+      <code>@Order</code>로 명시하지 않으면 의도와 다른 시점에 실행될 수 있다.</li>
+  <li><strong>자기 호출은 프록시를 타지 않는다</strong> — 같은 클래스 안에서
+      <code>@Transactional</code> 메서드를 불러도 전파 속성이 적용되지 않는다.
+      별도 빈으로 분리해야 한다.</li>
+  <li><strong>실패도 기록되어야 하는 데이터가 있다</strong> — 감사 로그를 거래 트랜잭션에 얹으면
+      롤백과 함께 사라진다. <code>REQUIRES_NEW</code>로 분리하는 이유가 여기 있다.</li>
+  <li><strong>JPA와 MyBatis는 경쟁 관계가 아니다</strong> — 엔티티 조작은 JPA,
+      집계는 SQL이 읽기 쉽다. 한 프로젝트에서 목적에 따라 나눠 쓸 수 있다.</li>
+  <li>매도는 평균 매수가를 바꾸지 않는다 — 도메인 규칙을 코드로 옮길 때
+      "무엇이 변하고 무엇이 변하지 않는지"를 먼저 정리해야 한다.</li>
+</ul>
+
+<h3>더 해볼 것</h3>
+<ul>
+  <li><code>UserDto</code>가 응답에 <strong>비밀번호를 그대로 포함</strong>한다.
+      요청용·응답용 DTO를 분리하거나 <code>@JsonProperty(access = WRITE_ONLY)</code>가 필요하다.</li>
+  <li>자동 테스트가 없다. 특히 <strong>평균 매수가 계산과 트랜잭션 롤백</strong>은
+      MockMvc·단위 테스트로 검증할 가치가 크다.</li>
+  <li>거래 수량·금액을 <code>Long</code>으로 다루고 있어 소수점 단위 가격에는 맞지 않는다.
+      금액은 <code>BigDecimal</code>이 안전하다.</li>
+  <li>동시에 같은 종목을 매매하면 포트폴리오 갱신에 경합이 생길 수 있다.
+      낙관적 락(<code>@Version</code>)을 고려할 수 있다.</li>
+  <li>H2 인메모리라 재시작하면 데이터가 사라진다. 실제 DB와 마이그레이션 도구를 붙이면
+      스키마를 버전 관리할 수 있다.</li>
+</ul>
+
+</body>
+</html>
