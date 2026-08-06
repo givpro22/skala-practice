@@ -10,4 +10,8 @@ import java.util.List;
 public interface TransactionRepository extends JpaRepository<Transaction, Long> {
     List<Transaction> findByUserIdOrderByTransactionDateDesc(Long userId);
     List<Transaction> findByUserIdAndStockIdOrderByTransactionDateDesc(Long userId, Long stockId);
+
+    // 삭제 전 참조 검사용 (transactions.user_id / stock_id 는 NOT NULL FK)
+    boolean existsByUserId(Long userId);
+    boolean existsByStockId(Long stockId);
 }

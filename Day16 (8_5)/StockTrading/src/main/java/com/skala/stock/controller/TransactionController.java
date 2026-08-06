@@ -6,9 +6,11 @@ import com.skala.stock.service.TransactionService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Min;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -16,6 +18,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/transactions")
 @RequiredArgsConstructor
+@Validated // @PathVariable 제약을 동작시키기 위해 필요
 @Tag(name = "거래 관리", description = "주식 매수/매도 거래 API")
 public class TransactionController {
 
@@ -30,14 +33,14 @@ public class TransactionController {
 
     @GetMapping("/user/{userId}")
     @Operation(summary = "사용자 거래 내역 조회", description = "특정 사용자의 전체 거래 내역을 조회합니다")
-    public ResponseEntity<List<TransactionDto>> getUserTransactions(@PathVariable Long userId) {
+    public ResponseEntity<List<TransactionDto>> getUserTransactions(@PathVariable @Min(value = 1, message = "사용자 ID는 1 이상이어야 합니다") Long userId) {
         List<TransactionDto> transactions = transactionService.getUserTransactions(userId);
         return ResponseEntity.ok(transactions);
     }
 
     @GetMapping("/{id}")
     @Operation(summary = "거래 상세 조회", description = "거래 ID로 거래 상세 정보를 조회합니다")
-    public ResponseEntity<TransactionDto> getTransactionById(@PathVariable Long id) {
+    public ResponseEntity<TransactionDto> getTransactionById(@PathVariable @Min(value = 1, message = "거래 ID는 1 이상이어야 합니다") Long id) {
         TransactionDto transaction = transactionService.getTransactionById(id);
         return ResponseEntity.ok(transaction);
     }
