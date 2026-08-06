@@ -10,6 +10,6 @@ AI 서비스를 위한 SW 기초 Full-stack Engineering 과정의 일자별 실�
 | Day 9 | 7/27 | Sampling Theory — 표본과 분포 (제곱근의 법칙·중심극한정리) | [Day9 (7_27)](<Day9 (7_27)>) |
 | Day 10 | 7/28 | Linear Regression — 부동산 가격 회귀분석 | [Day10 (7_28)](<Day10 (7_28)>) |
 | Day 13 | 7/31 | Self-Attention / Transformer 프로토타입 | [Day13 (7_31)](<Day13 (7_31)>) |
-| Day 14 | 8/3 | Java · SpringBoot · Rest API 구현 | [Day14 (8_3)](<Day14 (8_3)>) |
-| Day 15 | 8/4 | Java · SpringBoot · Rest API 구현 | [Day15 (8_4)](<Day15 (8_4)>) |
-| Day 16 | 8/5 | Java · SpringBoot · Rest API 구현 | [Day16 (8_5)](<Day16 (8_5)>) |
+| Day 14 | 8/3 | Java 기초 · SpringBoot 프로젝트 구성 · REST API 설계 | [Day14 (8_3)](<Day14 (8_3)>) |
+| Day 15 | 8/4 | Configuration/Profile · 메뉴 추천 REST API (Swagger · 자동 테스트 · Docker) | [Day15 (8_4)](<Day15 (8_4)>) |
+| Day 16 | 8/5 | 주식 거래 REST API — JPA · Actuator · Validation · Docker | [Day16 (8_5)](<Day16 (8_5)>) |
