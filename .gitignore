@@ -29,6 +29,14 @@ dist/
 .idea/
 *.swp
 
+# 압축 / 이미지 아카이브 (실습 배포본, 용량 큼)
+*.zip
+*.tar
+*.tar.gz
+
+# Node
+node_modules/
+
 # 로그 / 임시파일
 *.log
 tmp/
