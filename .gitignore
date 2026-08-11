@@ -40,3 +40,18 @@ node_modules/
 # 로그 / 임시파일
 *.log
 tmp/
+
+# Office 잠금 파일 (문서를 열어 두면 생기고 닫아도 남는다)
+~$*
+
+# Claude Code 로컬 설정과 worktree — 저장소 루트만.
+# Day19(8_10)/닥스/.claude 는 보고서 하네스라 커밋 대상이다.
+/.claude/settings.local.json
+/.claude/worktrees/
+
+# 강의 템플릿 작업 사본 — Day19(8_10)/msa-lecture 에 이미 커밋돼 있다.
+# 이쪽은 빌드 산출물(.gradle, bin)까지 붙어 401MB다.
+/Day19(8_10)/닥스/msa-lecture/
+
+# 조립할 때마다 남는 이전 docx 백업 — 옛 판은 git 이력이 대신한다.
+*.docx.bak
