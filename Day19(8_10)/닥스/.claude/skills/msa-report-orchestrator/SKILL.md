@@ -34,7 +34,7 @@ description: MSA/Agile 개인과제 보고서를 근거 수집 → 손그림 다
 
 **evidence-miner** 를 `model: "opus"`로 호출한다.
 
-- 입력: 작업 디렉토리의 PDF·txt·`msa-lecture/`, 팀 저장소 URL
+- 입력: 작업 디렉토리의 PDF·txt, 강의 템플릿 `../msa-lecture/`(한 단계 위), 팀 저장소 URL
 - 출력: `_workspace/01_evidence.md`
 - 완료 조건: A~G 7개 절이 모두 채워지고, 모든 항목에 출처가 붙어 있음
 
@@ -124,7 +124,7 @@ Phase 4(docx, 이미지 5개 확인) → 사용자에게 파일 경로와 피드
 
 **에러 흐름** — 저장소가 private이라 클론 실패
 → 1회 재시도 실패 → readme WebFetch도 404 → `_workspace/01_evidence.md`에
-"팀 저장소 미확보"를 명시하고 강의 템플릿 코드(`msa-lecture/`)만으로 진행 →
+"팀 저장소 미확보"를 명시하고 강의 템플릿 코드(`../msa-lecture/`)만으로 진행 →
 원고에서 팀 커스터마이징 절을 뺀다 → 사용자에게 "저장소 접근이 안 돼 팀 변경사항
 절이 빠졌다"고 먼저 보고
 
