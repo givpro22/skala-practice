@@ -19,7 +19,7 @@ Kafka 토픽)은 전부 검증 가능한 사실이다. 글을 쓰면서 기억�
 |---|---|---|
 | 강의 운영 가이드 | `1.Agile_MSA_진행_가이드.pdf` | 스프린트1/2 정의, 수정 금지 영역, 일정 |
 | 실습 가이드 | `Agile_MSA_실습_가이드_수정 (1).pdf` | "알아야 할 것 vs 몰라도 되는 것" 표, 도메인 매핑표 |
-| 강의 템플릿 코드 | `msa-lecture/` | 원본 구조 — 우리가 무엇을 바꿨는지의 기준선 |
+| 강의 템플릿 코드 | `../msa-lecture/` (한 단계 위) | 원본 구조 — 우리가 무엇을 바꿨는지의 기준선 |
 | 팀 프로젝트 | `github.com/siamin20/skala-msa-customs` | 실제 우리가 한 것. readme·_workspace·소스 |
 | 교수님 코멘트 | `2026-08-10_171407.txt` | **이해의 허용 깊이**. 톤을 정하는 근거 |
 
@@ -48,11 +48,11 @@ PDF는 `pdftotext -layout`으로 뽑는다. 팀 저장소는 얕은 클론(`--de
 - 프론트가 실제로 부르는 엔드포인트 목록
 
 ### 4. 팀이 바꾼 것을 원본과 대조한다
-`msa-lecture/`(원본)와 팀 저장소를 같은 경로끼리 비교하면 "무엇을 커스터마이징했는가"가
+`../msa-lecture/`(원본)와 팀 저장소를 같은 경로끼리 비교하면 "무엇을 커스터마이징했는가"가
 그대로 나온다. 이게 보고서에서 가장 값나가는 재료다.
 
 ```bash
-diff -rq msa-lecture/course-service/src <팀저장소>/course-service/src
+diff -rq ../msa-lecture/course-service/src <팀저장소>/course-service/src
 ```
 
 ## 출력 형식
