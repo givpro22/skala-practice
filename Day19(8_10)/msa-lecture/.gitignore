@@ -1,0 +1,64 @@
+# ===== macOS =====
+.DS_Store
+
+# ===== 환경변수 / 비밀정보 =====
+.env
+.env.*
+!.env.example
+
+# ===== Java / Gradle (eureka-server, user/course/enrollment/payment-service) =====
+.gradle/
+build/
+bin/
+out/
+!**/src/main/**/build/
+!**/src/test/**/build/
+!**/src/main/**/bin/
+!**/src/test/**/bin/
+!gradle/wrapper/gradle-wrapper.jar
+*.class
+HELP.md
+
+# ===== Node / Vue (vue-frontend) =====
+node_modules/
+dist/
+dist-ssr/
+.vite/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# ===== Python (recommend-service) =====
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+*.egg-info/
+
+# ===== Docker 이미지 / 압축 파일 (용량 큼, Git 추적 제외) =====
+# infra-images.tar 는 343MB 로 GitHub 파일 크기 제한(100MB) 초과
+*.tar
+*.tar.gz
+*.zip
+
+# ===== IDE / 에디터 =====
+.idea/
+*.iml
+*.iws
+*.ipr
+.vscode/
+.settings/
+.classpath
+.project
+.factorypath
+.apt_generated
+.springBeans
+.sts4-cache
+*.swp
+
+# ===== 로그 / 임시파일 =====
+*.log
+logs/
+tmp/
