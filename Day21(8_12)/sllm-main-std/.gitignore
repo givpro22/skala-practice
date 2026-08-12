@@ -1,0 +1,17 @@
+# 가상환경 — readme 가 지정한 이름
+sllm/
+.venv/
+
+# 학습된 어댑터. 체크포인트까지 546MB 라 올리지 않는다.
+# 재현하려면 scripts/train_lora.py 를 다시 돌린다.
+models/hr-qwen-lora/
+
+# 작업용 디렉토리 — 제출물이 아니다. 제출하는 것은 report/ 아래 .docx 두 개다.
+.claude/
+_workspace/
+
+# outputs/ 는 무시하지 않는다. 서브노트가 인용하는 수치의 출처이고 100KB 남짓이다.
+
+__pycache__/
+*.pyc
+.DS_Store
