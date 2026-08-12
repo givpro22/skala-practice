@@ -1,0 +1,15 @@
+{
+  "base_model": "Qwen/Qwen2.5-1.5B-Instruct",
+  "device": "mps",
+  "training_mode": "FP32 LoRA Apple MPS",
+  "epochs": 2.0,
+  "max_length": 384,
+  "learning_rate": 0.0001,
+  "gradient_accumulation_steps": 8,
+  "lora_rank": 16,
+  "lora_alpha": 32,
+  "final_train_loss": 0.683756,
+  "global_step": 146,
+  "best_metric": 0.22134146094322205,
+  "best_model_checkpoint": "/Users/parkyoungseo/workspace/SKALA/SKALA/Day21(8_12)/sllm-main-std/models/hr-qwen-lora/checkpoint-146"
+}

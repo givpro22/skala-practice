@@ -189,16 +189,6 @@ Mac 16GB 예:
 
 from __future__ import annotations
 
-import argparse
-import gc
-import json
-import os
-import platform
-
-# 이후 기존 코드...
-
-from __future__ import annotations
-
 # 명령행에서 전달되는 --train, --validation 등의 옵션을 처리합니다.
 import argparse
 
@@ -446,6 +436,12 @@ class TrainingProfile:
     # 메모리를 절약하기 위한 Gradient Checkpointing 사용 여부
     gradient_checkpointing: bool
 
+    # 몇 Step마다 GPU Cache를 비울지 지정
+    #
+    # None이면 비우지 않습니다. MPS는 Caching Allocator가 계속 커지므로
+    # 값을 지정해 주기적으로 비웁니다.
+    empty_cache_steps: int | None
+
     # Dataset 전체를 몇 번 반복 학습할지 지정
     epochs: float
 
@@ -592,6 +588,8 @@ def create_training_profile(
 
             gradient_checkpointing=True,
 
+            empty_cache_steps=None,
+
             epochs=epochs,
 
             learning_rate=get_env_float(
@@ -625,6 +623,12 @@ def create_training_profile(
             ),
 
             gradient_checkpointing=True,
+
+            # MPS는 Caching Allocator가 계속 커져 주기적으로 비워야 합니다.
+            empty_cache_steps=get_env_int(
+                "SFT_EMPTY_CACHE_STEPS",
+                1,
+            ),
 
             epochs=epochs,
 
@@ -661,6 +665,8 @@ def create_training_profile(
         ),
 
         gradient_checkpointing=True,
+
+        empty_cache_steps=None,
 
         epochs=epochs,
 
@@ -892,6 +898,52 @@ def load_training_dataset(
 
 # 4. Tokenizer와 실제 학습 입력 확인
 
+# Qwen2.5 기본 Chat Template의 assistant 분기 (감싸기 전)
+#
+# user, 두 번째 이후 system, tool_calls 없는 assistant 를 한 분기에서 처리한다.
+_QWEN_MERGED_BRANCH = """    {%- if (message.role == "user") or (message.role == "system" and not loop.first) or (message.role == "assistant" and not message.tool_calls) %}
+        {{- '<|im_start|>' + message.role + '\\n' + message.content + '<|im_end|>' + '\\n' }}"""
+
+# assistant 만 떼어 내고 본문을 {% generation %} 으로 감싼 형태
+_QWEN_SPLIT_BRANCH = """    {%- if (message.role == "user") or (message.role == "system" and not loop.first) %}
+        {{- '<|im_start|>' + message.role + '\\n' + message.content + '<|im_end|>' + '\\n' }}
+    {%- elif message.role == "assistant" and not message.tool_calls %}
+        {{- '<|im_start|>' + message.role + '\\n' }}
+        {%- generation %}{{- message.content }}{%- endgeneration %}
+        {{- '<|im_end|>' + '\\n' }}"""
+
+
+def add_generation_block(chat_template: str | None) -> str | None:
+    """
+    Chat Template의 assistant 응답 구간을 {% generation %} 으로 표시합니다.
+
+    이미 표시되어 있거나 알고 있는 형태가 아니면 원본을 그대로 돌려줍니다.
+    Template 구조가 바뀌었는데 조용히 통과시키면 assistant Mask가 0인 채로
+    학습이 돌아 버리므로, 그 경우에는 경고를 남깁니다.
+    """
+
+    if chat_template is None:
+        return chat_template
+
+    if "{%- generation %}" in chat_template or "{% generation %}" in chat_template:
+        return chat_template
+
+    if _QWEN_MERGED_BRANCH not in chat_template:
+        print(
+            "[Tokenizer] 경고: Chat Template에서 assistant 분기를 찾지 못했습니다. "
+            "assistant_only_loss가 동작하지 않을 수 있습니다."
+        )
+        return chat_template
+
+    print("[Tokenizer] Chat Template에 {% generation %} 블록을 추가했습니다.")
+
+    return chat_template.replace(
+        _QWEN_MERGED_BRANCH,
+        _QWEN_SPLIT_BRANCH,
+        1,
+    )
+
+
 def load_tokenizer() -> PreTrainedTokenizerBase:
     """
     Qwen Base Model에 맞는 Tokenizer를 로드합니다.
@@ -920,6 +972,19 @@ def load_tokenizer() -> PreTrainedTokenizerBase:
 
     # 오른쪽에 Padding Token을 추가하도록 설정합니다.
     tokenizer.padding_side = "right"
+
+    # SFTConfig의 assistant_only_loss=True는 Chat Template이
+    # {% generation %} 블록으로 assistant 응답 구간을 표시해 줄 때만 동작합니다.
+    #
+    # Qwen2.5의 기본 Template에는 이 블록이 없어서 assistant Mask가 전부 0이 되고,
+    # TRL이 "at least one example has no assistant tokens" 오류로 학습을 중단합니다.
+    #
+    # 기본 Template은 user / system / assistant를 한 분기에서 함께 출력하므로,
+    # assistant만 별도 분기로 떼어 내고 그 본문을 {% generation %}으로 감쌉니다.
+    # 출력되는 문자열 자체는 바뀌지 않고, Mask 정보만 추가로 생깁니다.
+    tokenizer.chat_template = add_generation_block(
+        tokenizer.chat_template
+    )
 
     print(
         f"[Tokenizer] EOS token : "
@@ -1320,6 +1385,16 @@ def create_sft_config(
         gradient_checkpointing_kwargs={
             "use_reentrant": False,
         },
+
+        # MPS의 Caching Allocator는 한번 잡은 Buffer를 계속 들고 있어
+        # Step이 진행될수록 메모리 점유가 커집니다.
+        #
+        # 16GB Mac에서는 9 Step 부근에서 물리 메모리를 넘어 Swap으로 밀리고,
+        # Step 시간이 13초에서 200초까지 늘어납니다.
+        # 주기적으로 Cache를 비워 이 증상을 막습니다.
+        torch_empty_cache_steps=(
+            profile.empty_cache_steps
+        ),
 
         # Conversational Dataset에서
         # assistant 응답 부분을 학습 정답으로 사용합니다.
