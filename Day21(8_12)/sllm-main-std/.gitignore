@@ -1,0 +1,15 @@
+# 가상환경 — readme 가 지정한 이름
+sllm/
+.venv/
+
+# 학습 산출물. 어댑터 safetensors 는 수십 MB 다
+models/hr-qwen-lora/
+outputs/
+
+# 중간 산출물. 로그와 scene 파일은 재실행에 필요하지만 저장소에 올릴 것은 아니다
+_workspace/logs/
+_workspace/prev_outputs_*/
+
+__pycache__/
+*.pyc
+.DS_Store
